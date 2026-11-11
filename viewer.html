@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review code in context</title>
+<style>
+:root{--ink:#1B1F24;--mute:#57606A;--line:#C9CED6;--edge:#8C959F;--panel:#F4F5F7;--blue:#1F5FBF;--blue-bg:#E8F0FB;--blue-ink:#174A96;--warn:#B45309;--warn-bg:#FFF4E5;--warn-ink:#8A3F06;--add:#E6FFEC;--add-edge:#1A7F37;--del:#FFEBE9;--del-edge:#CF222E;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font:15px/22px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--blue)}
+button,textarea,input{font:inherit;color:inherit}
+textarea{width:100%;padding:8px 10px;border:1px solid var(--edge);border-radius:8px;resize:vertical;background:#fff}
+.wrap{max-width:1560px;margin:0 auto;padding:16px 56px 48px;display:flex;flex-direction:column;gap:14px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--panel);border-radius:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--edge);background:#fff;color:var(--ink);font-weight:600;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.small{min-height:32px;padding:0 10px;font-size:13px}
+.btn[disabled],.btn.off{opacity:.45;cursor:default;pointer-events:none}
+.mono{font-family:var(--mono)}
+.sub{font-size:13px;color:var(--mute)}
+.badge{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;border:1px solid var(--edge);background:#fff;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.badge.added{background:var(--add);border-color:var(--add-edge)}
+.badge.deleted{background:var(--del);border-color:var(--del-edge)}
+.badge.attn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn-ink)}
+.filebar{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:12px}
+.rowx{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.chip{display:inline-flex;align-items:center;min-height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--edge);color:var(--ink);text-decoration:none;font-size:13px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.cur{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.chip.done{color:var(--mute)}
+.cap{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px}
+.step{padding:6px 10px;border:1px solid var(--line);border-radius:8px}
+.step.here{background:var(--blue);border-color:var(--blue);color:#fff}
+.step.changed{background:var(--blue-bg);border-color:var(--blue)}
+.step.external{border-style:dashed;border-color:var(--edge);color:var(--mute)}
+.jumps{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px}
+.jump{min-height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--ink);background:#fff;font-weight:600;cursor:pointer}
+.jump.attn{border:2px solid var(--warn);background:var(--warn-bg)}
+.jump.sel{background:var(--ink);border-color:var(--ink);color:#fff}
+.heads,.stage{display:grid;grid-template-columns:250px minmax(0,1fr) 250px;column-gap:56px}
+.stage{position:relative}
+.col{position:relative}
+.pane{border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:#fff}
+.pane-head{height:36px;line-height:36px;padding:0 12px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.code{height:clamp(420px,calc(100vh - 150px),1100px);overflow:auto;font:13px/22px var(--mono);outline:none;tab-size:2}
+.code-inner{display:inline-block;min-width:100%}
+.row{display:flex;height:22px;white-space:pre;padding-right:16px;color:var(--mute)}
+.row.add{background:var(--add);color:var(--ink)}
+.row.del{background:var(--del);color:var(--ink)}
+.row.target{box-shadow:inset 0 0 0 2px var(--ink)}
+.gut{flex:none;width:6px}
+.row.chg .gut{background:var(--ink)}
+.row.chg.attn .gut{background:var(--warn)}
+.num{flex:none;width:52px;text-align:right;padding:0 10px 0 0;border:0;background:none;font:inherit;color:var(--mute);cursor:pointer}
+.num:hover,.num:focus-visible{color:var(--ink);text-decoration:underline}
+.sign{flex:none;width:18px;user-select:none;font-weight:700}
+.ref{border:0;background:none;padding:0;font:inherit;color:var(--blue-ink);text-decoration:underline;cursor:pointer}
+.mark{margin-left:16px;align-self:center;height:18px;line-height:16px;padding:0 8px;border-radius:999px;border:1px solid var(--ink);background:var(--ink);color:#fff;font:700 11px/16px system-ui,sans-serif;cursor:pointer}
+.mark:empty{display:none}
+.wires{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.card{position:absolute;left:0;width:100%;height:58px;padding:6px 12px;display:flex;flex-direction:column;justify-content:center;text-align:left;font-size:13px;line-height:19px;background:#fff;border:1px solid var(--edge);border-radius:10px;cursor:pointer;overflow:hidden}
+.card b,.card span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.inpr{background:var(--blue-bg);border-color:var(--blue)}
+.card.attn{background:var(--warn-bg);border:3px solid var(--warn)}
+.card.ext{border-style:dashed;color:var(--mute)}
+.card.none{border-style:dashed;color:var(--mute);cursor:default}
+.hint{position:absolute;left:0;top:36px;width:100%;font-size:13px;line-height:19px;color:var(--mute)}
+.card,.wires,.hint{transition:opacity .12s}
+.stage.scrolling .card,.stage.scrolling .wires,.stage.scrolling .hint{opacity:0}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.note{padding:12px 16px;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:6px}
+.note.ok{background:var(--blue-bg);border-color:var(--blue)}
+.note.attention{background:var(--warn-bg);border:3px solid var(--warn)}
+.k{font-size:12px;font-weight:700;color:var(--mute);text-transform:uppercase}
+.legend{display:flex;flex-wrap:wrap;gap:18px;padding:12px 16px;background:var(--panel);border-radius:12px;font-size:13px}
+.legend span{display:flex;align-items:center;gap:8px}
+.sw{display:inline-block;width:14px;height:14px;border:1px solid var(--edge)}
+.backdrop{position:fixed;left:0;top:0;width:100%;height:100%;border:0;padding:0;background:rgba(27,31,36,.12);z-index:20;cursor:default}
+.drawer{position:fixed;top:64px;z-index:21;width:480px;max-width:94vw;max-height:calc(100vh - 88px);overflow:auto;padding:18px 22px;background:#fff;border:2px solid var(--ink);display:flex;flex-direction:column;gap:12px}
+.drawer.left{left:0;border-left:0;border-radius:0 12px 12px 0;box-shadow:8px 8px 24px rgba(27,31,36,.2);animation:inl .18s ease-out}
+.drawer.right{right:0;border-right:0;border-radius:12px 0 0 12px;box-shadow:-8px 8px 24px rgba(27,31,36,.2);animation:inr .18s ease-out}
+.drawer.wide{width:560px}
+@keyframes inl{from{transform:translateX(-32px);opacity:0}to{transform:none;opacity:1}}
+@keyframes inr{from{transform:translateX(32px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.drawer{animation:none}.card,.wires,.hint{transition:none}}
+.x{position:absolute;top:8px;right:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--edge);background:#fff;cursor:pointer}
+.drawer h2{margin:0;padding-right:48px;min-height:32px;font:700 17px/24px system-ui,sans-serif;overflow-wrap:anywhere}
+.drawer h2.mono{font:500 16px/24px var(--mono)}
+.pre{margin-top:4px;padding:8px 12px;border-radius:8px;background:var(--panel);font:13px/20px var(--mono);white-space:pre;overflow-x:auto}
+.snip{margin-top:6px;border:1px solid var(--edge);border-radius:8px;overflow-x:auto;font:12px/20px var(--mono)}
+.snip div{padding:0 12px;white-space:pre;color:var(--mute)}
+.snip div.hl{color:var(--ink);font-weight:600;background:var(--blue-bg);box-shadow:inset 0 0 0 2px var(--ink)}
+.snip.attn div.hl{background:var(--warn-bg)}
+.tabs{position:fixed;top:34vh;z-index:19;display:flex;flex-direction:column;gap:8px}
+.tabs.l{left:0;align-items:flex-start}
+.tabs.r{right:0;align-items:flex-end}
+.tab{writing-mode:vertical-rl;min-width:40px;min-height:44px;padding:12px 8px;border:1px solid var(--ink);background:var(--ink);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.tabs.l .tab{border-left:0;border-radius:0 10px 10px 0}
+.tabs.r .tab{border-right:0;border-radius:10px 0 0 10px}
+.msg{padding:10px 12px;border-radius:10px;border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.msg.claude{background:var(--blue-bg);border-color:var(--blue)}
+.msg .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.msg code,.txt code{font:13px var(--mono);background:rgba(27,31,36,.08);padding:1px 4px;border-radius:4px}
+.anchor{align-self:flex-start;border:1px solid var(--edge);background:#fff;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thread{display:flex;flex-direction:column;gap:10px}
+.idle{position:fixed;left:0;top:0;width:100%;height:100%;z-index:40;background:rgba(27,31,36,.45);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+.idle-card{max-width:440px;background:#fff;border-radius:12px;padding:22px 24px;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.banner{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 16px;background:var(--warn-bg);border-top:2px solid var(--warn);font-weight:600;text-align:center}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding:8px 10px;border-bottom:1px solid var(--edge)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+@media (max-width:1000px){.heads,.stage{grid-template-columns:150px minmax(0,1fr) 150px;column-gap:28px}.wrap{padding:16px 16px 48px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="tabs"></div>
+<div id="over"></div>
+<script>window.REVIEW = /*__REVIEW_DATA__*/null;</script>
+<script>
+(function () {
+  var R = window.REVIEW, app = document.getElementById('app'), over = document.getElementById('over'), tabsEl = document.getElementById('tabs');
+  if (!R || !R.files) { app.textContent = 'No review data was embedded in this page.'; return; }
+  var LH = 22, HEAD = 36, CARD = 58, GAP = 8, MAXCARDS = 4;
+  var files = R.files, ents = R.entities || {}, pr = R.pr || {}, LIVE = window.RCC || null;
+  var S = { reviewed: {}, comments: [], chat: [], submitted: null, listening: false, canPost: false, pr: {}, prComments: null };
+  var TICKETS = [];
+  var view = null, openRefresh = null, summaryDraft = '', verdict = 'COMMENT', offline = false, paused = false, pausedReason = '', active = false, idleShown = false, pausedShown = false;
+
+  function h(tag, attrs, kids) {
+    var el = document.createElement(tag), k;
+    if (attrs) for (k in attrs) {
+      if (attrs[k] == null || attrs[k] === false) continue;
+      if (k === 'class') el.className = attrs[k];
+      else if (k === 'text') el.textContent = attrs[k];
+      else if (k.slice(0, 2) === 'on') el.addEventListener(k.slice(2), attrs[k]);
+      else el.setAttribute(k, attrs[k] === true ? '' : attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c != null && c !== false) el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return el;
+  }
+  function svg(tag, attrs) { var el = document.createElementNS('http://www.w3.org/2000/svg', tag), k; for (k in attrs) el.setAttribute(k, attrs[k]); return el; }
+  function base(p) { return String(p).split('/').pop(); }
+  function fileIndex(p) { for (var i = 0; i < files.length; i++) if (files[i].path === p) return i; return -1; }
+  function nDone() { return files.filter(function (f) { return S.reviewed[f.path]; }).length; }
+  function attnCount(f) { return (f.changes || []).filter(function (c) { return c.level === 'attention'; }).length; }
+  function rich(text) {
+    var out = h('div', { class: 'txt' });
+    String(text).split(/```[a-zA-Z]*\n?/).forEach(function (part, i) {
+      if (i % 2) { out.appendChild(h('div', { class: 'pre', text: part.replace(/\n$/, '') })); return; }
+      part.split('`').forEach(function (p, j) { if (p) out.appendChild(j % 2 ? h('code', { text: p }) : document.createTextNode(p)); });
+    });
+    return out;
+  }
+
+  function ago(t) { var ms = typeof t === 'number' ? t : Date.parse(t); if (!ms) return ''; var s = Math.max(0, Math.round((Date.now() - ms) / 1000)); if (s < 60) return 'just now'; var m = Math.round(s / 60); if (m < 60) return m + ' min ago'; var hh = Math.round(m / 60); if (hh < 48) return hh + ' h ago'; return Math.round(hh / 24) + ' days ago'; }
+  function prLine() { return S.prComments && S.prComments.line ? S.prComments.line : []; }
+  function rowFor(p, line, side) {
+    var i = fileIndex(p); if (i < 0) return -1;
+    var ls = files[i].lines || [], del = files[i].status === 'deleted';
+    for (var r = 0; r < ls.length; r++) { if (side === 'LEFT' ? ((ls[r].k === '-' || del) && ls[r].o === line) : (ls[r].k !== '-' && ls[r].n === line)) return r; }
+    return -1;
+  }
+  function api(route, body) {
+    if (!LIVE) return Promise.reject(new Error('not live'));
+    return fetch('/api/' + route, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-rcc-token': LIVE.token }, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  }
+  function setOffline(v) {
+    offline = v; banner();
+  }
+  var PAUSE_TEXT = 'Session paused. Everything is saved. When you are back, run /review-code-in-context --resume in the terminal.';
+  function banner() {
+    var text = paused ? (pausedReason === 'idle' ? 'Session paused because there was no activity for ' + (S.idleMinutes || 30) + ' minutes. Everything is saved. Run /review-code-in-context --resume in the terminal to continue.' : PAUSE_TEXT) : offline ? 'The review server has stopped, so chat and comments are paused. In the terminal, run /review-code-in-context --resume' : '';
+    var b = document.getElementById('banner');
+    if (!text) { if (b) b.remove(); return; }
+    if (!b) { b = h('div', { id: 'banner', class: 'banner' }); document.body.appendChild(b); }
+    b.textContent = text;
+    if (paused && !pausedShown) pausedBox(); if (!paused) { pausedShown = false; var pb = document.getElementById('paused'); if (pb) pb.remove(); }
+    Array.prototype.forEach.call(document.querySelectorAll('.pause-btn'), function (x) { x.disabled = paused; x.textContent = paused ? 'Paused' : 'Pause session'; });
+  }
+  function pauseSession() {
+    if (!LIVE || paused) return;
+    api('finish', { paused: true }).then(function () { paused = true; pausedReason = ''; banner(); }).catch(function () { setOffline(true); });
+  }
+  var RESUME_CMD = '/review-code-in-context --resume';
+  function pausedBox() {
+    pausedShown = true; idleBox(null);
+    var close = function () { var x = document.getElementById('paused'); if (x) x.remove(); };
+    var copy = h('button', { class: 'btn', id: 'paused-copy', type: 'button', text: 'Copy', onclick: function () { var done = function () { copy.textContent = 'Copied'; }; try { navigator.clipboard.writeText(RESUME_CMD).then(done, function () {}); } catch (e) {} } });
+    var box = h('div', { id: 'paused', class: 'idle', role: 'alertdialog', 'aria-labelledby': 'paused-h' }, [h('div', { class: 'idle-card' }, [
+      h('div', { id: 'paused-h', style: 'font-size:18px;font-weight:700', text: 'Session paused' }),
+      h('div', { text: (pausedReason === 'idle' ? 'There was no activity for ' + (S.idleMinutes || 30) + ' minutes, so the session paused itself. ' : '') + 'Your comments, conversation and reviewed ticks are saved. Nothing has been posted to the PR.' }),
+      h('div', { style: 'font-weight:600', text: 'To pick up where you left off, run this in the terminal, in this repository:' }),
+      h('div', { class: 'rowx' }, [h('code', { class: 'mono', id: 'paused-cmd', style: 'flex:1;padding:8px 10px;background:var(--panel);border-radius:8px', text: RESUME_CMD }), copy]),
+      h('div', { class: 'sub', text: 'You can keep reading this page, but questions and new comments wait until you resume.' }),
+      h('div', { class: 'rowx' }, [h('button', { class: 'btn primary', id: 'paused-close', type: 'button', text: 'Close', onclick: close })])
+    ])]);
+    document.body.appendChild(box); document.getElementById('paused-close').focus();
+  }
+  function idleBox(left) {
+    var box = document.getElementById('idle');
+    if (left == null || paused) { if (box) box.remove(); idleShown = false; return; }
+    var secs = Math.ceil(left / 1000), when = secs >= 60 ? Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s' : secs + ' s';
+    if (!box) {
+      idleShown = true;
+      box = h('div', { id: 'idle', class: 'idle', role: 'alertdialog', 'aria-labelledby': 'idle-h' }, [h('div', { class: 'idle-card' }, [
+        h('div', { id: 'idle-h', style: 'font-size:18px;font-weight:700', text: 'Still reviewing?' }),
+        h('div', { text: 'Nothing has happened here for ' + (S.idleMinutes || 30) + ' minutes. To avoid spending money while you are away, this session will pause on its own.' }),
+        h('div', { id: 'idle-left', style: 'font-weight:600' }),
+        h('div', { class: 'rowx' }, [
+          h('button', { class: 'btn primary', id: 'idle-keep', type: 'button', text: 'Keep reviewing', onclick: function () { idleBox(null); api('touch', {}).catch(function () {}); } }),
+          h('button', { class: 'btn', id: 'idle-pause', type: 'button', text: 'Pause now', onclick: function () { idleBox(null); pauseSession(); } })
+        ]),
+        h('div', { class: 'sub', text: 'Pausing keeps your comments and conversation. Run /review-code-in-context --resume to carry on.' })
+      ])]);
+      document.body.appendChild(box); document.getElementById('idle-keep').focus();
+    }
+    document.getElementById('idle-left').textContent = 'Pausing in ' + when;
+  }
+  ['mousemove', 'keydown', 'wheel', 'click', 'touchstart'].forEach(function (ev) { window.addEventListener(ev, function () { if (!idleShown) active = true; }, { passive: true, capture: true }); });
+  function pauseBtn() {
+    if (!LIVE) return null;
+    var b = h('button', { class: 'btn pause-btn', type: 'button', title: 'Stops Claude listening so nothing is spent while you are away. Your comments and conversation are kept.', text: paused ? 'Paused' : 'Pause session', onclick: pauseSession });
+    b.disabled = paused; return b;
+  }
+  var lastSig = '';
+  function pull() {
+    if (active && LIVE && !paused && !offline) { active = false; api('touch', {}).catch(function () {}); }
+    return api('state').then(function (st) {
+      paused = !!st.paused; pausedReason = st.pausedReason || '';
+      setOffline(false);
+      var sig = JSON.stringify([st.reviewed, st.comments, st.chat.length, st.chat.filter(function (m) { return m.answered; }).length, st.submitted, st.listening, st.prComments ? st.prComments.fetchedAt : 0]);
+      S = st; idleBox(st.idleLeft);
+      if (sig !== lastSig) { lastSig = sig; renderTabs(); if (view && view.decorate) view.decorate(); if (openRefresh) openRefresh(); }
+    }).catch(function () { if (LIVE && !offline) setOffline(true); });
+  }
+
+  function closeOver() { over.innerHTML = ''; openRefresh = null; }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOver(); });
+  function drawer(side, kids, wide) {
+    closeOver();
+    var x = h('button', { class: 'x', type: 'button', 'aria-label': 'Close', onclick: closeOver });
+    x.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="#1B1F24" stroke-width="2" stroke-linecap="round"><path d="M3 3 L13 13 M13 3 L3 13"/></svg>';
+    over.appendChild(h('button', { class: 'backdrop', type: 'button', 'aria-label': 'Close panel', onclick: closeOver }));
+    var d = h('div', { class: 'drawer ' + side + (wide ? ' wide' : ''), role: 'dialog' }, [x].concat(kids));
+    over.appendChild(d);
+    return d;
+  }
+  function sect(label, node) { return h('div', null, [h('div', { class: 'k', text: label }), node]); }
+  function go(hash) { if (location.hash === hash) route(); else location.hash = hash; }
+  function goAnchor(a) {
+    if (!a || !a.path) return;
+    var i = fileIndex(a.path); if (i < 0) return;
+    go('#/file/' + (i + 1) + (a.row != null ? '/r' + a.row : a.change != null ? '/c' + (a.change + 1) : ''));
+  }
+
+  function openChat(anchor, prefill) {
+    var cur = anchor || null;
+    var thread = h('div', { class: 'thread' }), status = h('div', { class: 'sub' });
+    var about = h('div', { class: 'rowx' });
+    var ta = h('textarea', { rows: '3', id: 'chat-input', 'aria-label': 'Your question' });
+    if (prefill) ta.value = prefill;
+    function drawAbout() {
+      about.innerHTML = '';
+      if (cur) { about.appendChild(h('span', { class: 'sub', text: 'About:' })); about.appendChild(h('span', { class: 'anchor', text: cur.label })); about.appendChild(h('button', { class: 'btn small', type: 'button', text: 'Ask generally instead', onclick: function () { cur = null; drawAbout(); } })); }
+      else about.appendChild(h('span', { class: 'sub', text: 'About: the review in general. Start from a line, a card or a flagged change to ask about that spot.' }));
+    }
+    function draw() {
+      var stick = d.scrollHeight - d.scrollTop - d.clientHeight < 80;
+      thread.innerHTML = '';
+      if (!S.chat.length) thread.appendChild(h('div', { class: 'sub', text: 'Nothing asked yet.' }));
+      S.chat.forEach(function (m) {
+        var kids = [h('div', { class: 'k', text: m.role === 'user' ? 'You' : 'Claude' })];
+        if (m.anchor && m.anchor.label && m.role === 'user') kids.push(h('button', { class: 'anchor', type: 'button', title: 'Go there', text: m.anchor.label, onclick: function () { closeOver(); goAnchor(m.anchor); } }));
+        kids.push(rich(m.text));
+        if (m.role === 'claude') kids.push(h('button', { class: 'btn small', type: 'button', style: 'align-self:flex-start', text: m.anchor && m.anchor.row != null ? 'Use as a review comment on that line' : 'Add to my review summary', onclick: function () {
+          if (m.anchor && m.anchor.row != null && view && view.path === m.anchor.path) view.openLine(m.anchor.row, m.text);
+          else if (m.anchor && m.anchor.row != null) { pendingLine = { path: m.anchor.path, row: m.anchor.row, text: m.text }; closeOver(); goAnchor(m.anchor); }
+          else { summaryDraft = (summaryDraft ? summaryDraft + '\n\n' : '') + m.text; openReview(); }
+        } }));
+        thread.appendChild(h('div', { class: 'msg ' + m.role }, kids));
+      });
+      var waiting = S.chat.some(function (m) { return m.role === 'user' && !m.answered; });
+      if (waiting) thread.appendChild(h('div', { class: 'sub', text: S.listening ? 'Claude is working on it…' : 'Waiting for Claude. It is not listening right now: in the terminal, tell it to continue the review.' }));
+      status.textContent = !LIVE ? 'Chat needs the review server.' : S.listening ? 'Claude is listening in your terminal.' : 'Claude is not listening right now. In the terminal, tell it to continue the review.';
+      if (stick) d.scrollTop = d.scrollHeight;
+    }
+    var send = h('button', { class: 'btn primary', type: 'button', text: 'Ask Claude', onclick: function () {
+      var t = ta.value.trim(); if (!t) return;
+      send.disabled = true;
+      api('ask', { text: t, anchor: cur }).then(function () { ta.value = ''; send.disabled = false; return pull(); }).then(function () { d.scrollTop = d.scrollHeight; }).catch(function () { send.disabled = false; setOffline(true); });
+    } });
+    var d = drawer('right', [h('h2', { text: 'Conversation with Claude' }), status, thread, about, ta, h('div', { class: 'rowx' }, [send])], true);
+    drawAbout(); draw(); d.scrollTop = d.scrollHeight; ta.focus();
+    openRefresh = draw;
+  }
+  var pendingLine = null;
+
+  function openReview() {
+    var list = h('div', { class: 'thread' }), result = h('div');
+    var ta = h('textarea', { rows: '3', id: 'review-summary', 'aria-label': 'Overall comment', oninput: function () { summaryDraft = ta.value; } });
+    ta.value = summaryDraft;
+    var radios = h('div', { class: 'rowx' }, [['COMMENT', 'Comment only'], ['REQUEST_CHANGES', 'Request changes'], ['APPROVE', 'Approve']].map(function (v) {
+      var r = h('input', { type: 'radio', name: 'verdict', value: v[0], onchange: function () { verdict = v[0]; confirmBox.innerHTML = ''; } });
+      r.checked = verdict === v[0];
+      return h('label', { style: 'display:flex;align-items:center;gap:6px;min-height:36px' }, [r, v[1]]);
+    }));
+    var confirmBox = h('div');
+    function label(v) { return v === 'APPROVE' ? 'approve' : v === 'REQUEST_CHANGES' ? 'request changes' : 'comment'; }
+    function draw() {
+      list.innerHTML = '';
+      if (!S.comments.length) list.appendChild(h('div', { class: 'sub', text: 'No comments yet. Click a line number in the code to add one.' }));
+      S.comments.forEach(function (c) {
+        list.appendChild(h('div', { class: 'msg' }, [
+          h('button', { class: 'anchor', type: 'button', title: 'Go there', text: c.path + (c.line ? ':' + c.line : '') + (c.side === 'LEFT' ? ' (removed line)' : ''), onclick: function () { closeOver(); goAnchor(c); } }),
+          rich(c.body),
+          c.commentable ? null : h('div', { class: 'sub', text: 'Far from any changed line, so GitHub will not take it as a line comment. It will go in the review summary with its file and line.' }),
+          h('div', { class: 'rowx' }, [
+            h('button', { class: 'btn small', type: 'button', text: 'Edit', onclick: function () { if (view && view.path === c.path) view.openLine(c.row, null, c); else { pendingLine = { path: c.path, row: c.row, edit: c.id }; closeOver(); goAnchor(c); } } }),
+            h('button', { class: 'btn small', type: 'button', text: 'Delete', onclick: function () { api('comment', { id: c.id, delete: true }).then(pull); } })
+          ])
+        ]));
+      });
+      if (S.submitted) result.replaceChildren(h('div', { class: 'msg claude' }, [h('b', { text: 'Review submitted (' + label(S.submitted.event) + ').' }), S.submitted.url ? h('a', { href: S.submitted.url, target: '_blank', rel: 'noopener', text: S.submitted.url }) : null, S.submitted.note ? h('div', { text: S.submitted.note }) : null, S.submitted.file ? h('div', { class: 'mono sub', text: S.submitted.file }) : null]));
+    }
+    var submit = h('button', { class: 'btn primary', type: 'button', text: 'Submit review…', onclick: function () {
+      confirmBox.replaceChildren(h('div', { class: 'msg' }, [
+        h('div', { text: (S.canPost ? 'Post to PR #' + S.pr.number + ': ' : 'No GitHub PR was found for this branch, so this will be saved to a file: ') + S.comments.length + ' comment' + (S.comments.length === 1 ? '' : 's') + (summaryDraft.trim() ? ' and a summary' : '') + ', as "' + label(verdict) + '".' }),
+        h('div', { class: 'rowx' }, [
+          h('button', { class: 'btn primary', type: 'button', id: 'confirm-post', text: S.canPost ? 'Post review' : 'Save review', onclick: function () {
+            confirmBox.replaceChildren(h('div', { class: 'sub', text: 'Sending…' }));
+            api('submit', { event: verdict, body: summaryDraft.trim() }).then(function (out) {
+              if (out.ok) { confirmBox.innerHTML = ''; summaryDraft = ''; ta.value = ''; return pull(); }
+              confirmBox.replaceChildren(h('div', { class: 'msg', style: 'border-color:var(--warn);background:var(--warn-bg)' }, [h('b', { text: 'GitHub did not accept the review.' }), h('div', { class: 'txt', text: out.error || 'Unknown error' })]));
+            }).catch(function () { setOffline(true); });
+          } }),
+          h('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: function () { confirmBox.innerHTML = ''; } })
+        ])
+      ]));
+    } });
+    drawer('right', [
+      h('h2', { text: 'Your review' }),
+      h('div', { class: 'sub', text: S.canPost ? 'Will be posted to PR #' + S.pr.number + ' when you submit. Nothing is posted before that.' : 'No GitHub PR was found for this branch. Submitting saves your review to a file.' }),
+      sect('Line comments', list), sect('Overall comment (optional)', ta), sect('Verdict', radios),
+      h('div', { class: 'rowx' }, [submit]),
+      confirmBox, result
+    ], true);
+    draw(); openRefresh = draw;
+  }
+
+  function prCard(c, withAnchor) {
+    var kids = [h('div', { class: 'k', text: (c.user || 'someone') + ' · ' + ago(c.at) + (c.kind === 'review' && c.state ? ' · review: ' + String(c.state).toLowerCase().replace('_', ' ') : '') + (c.outdated ? ' · on an older version of the code' : '') })];
+    if (withAnchor && c.path) kids.push(h('button', { class: 'anchor', type: 'button', title: 'Go there', text: c.path + (c.line ? ':' + c.line : ''), onclick: function () { var r = rowFor(c.path, c.line, c.side); closeOver(); goAnchor({ path: c.path, row: r >= 0 ? r : null }); } }));
+    kids.push(rich(c.body || '(no text)'));
+    if (c.url) kids.push(h('a', { class: 'sub', href: c.url, target: '_blank', rel: 'noopener', text: 'Open on GitHub' }));
+    return h('div', { class: 'msg' }, kids);
+  }
+  function openPrComments() {
+    var body = h('div', { class: 'thread' }), status = h('span', { class: 'sub' });
+    function draw() {
+      var p = S.prComments; body.innerHTML = '';
+      status.textContent = !p ? 'Not loaded yet.' : (p.error ? p.error + ' ' : '') + 'Last checked ' + ago(p.fetchedAt) + '.';
+      if (!p) return;
+      body.appendChild(h('div', { class: 'k', text: 'Conversation and reviews (' + p.general.length + ')' }));
+      if (!p.general.length) body.appendChild(h('div', { class: 'sub', text: 'None.' }));
+      p.general.forEach(function (c) { body.appendChild(prCard(c, false)); });
+      body.appendChild(h('div', { class: 'k', text: 'Comments on lines (' + p.line.length + ')' }));
+      if (!p.line.length) body.appendChild(h('div', { class: 'sub', text: 'None.' }));
+      p.line.forEach(function (c) { body.appendChild(prCard(c, true)); });
+    }
+    var btn = h('button', { class: 'btn small', type: 'button', id: 'refresh-pr', text: 'Refresh from GitHub', onclick: function () { btn.disabled = true; status.textContent = 'Checking GitHub…'; api('refresh-pr', {}).then(pull).then(function () { btn.disabled = false; draw(); }).catch(function () { btn.disabled = false; setOffline(true); }); } });
+    drawer('right', [h('h2', { text: 'Already on the PR' }), h('div', { class: 'rowx' }, [btn, status]), body], true);
+    draw(); openRefresh = draw;
+  }
+  function loadTickets() { return api('tickets').then(function (r) { TICKETS = r.tickets || []; renderTabs(); }).catch(function () {}); }
+  function openTickets() {
+    var body = h('div', { class: 'thread' });
+    function draw() {
+      body.innerHTML = '';
+      TICKETS.forEach(function (t) {
+        var kids = [h('div', { class: 'k', text: (t.type || 'Ticket') + ' ' + t.key + (t.status ? ' · ' + t.status : '') + (t.fetchedAt ? ' · fetched ' + ago(t.fetchedAt) : '') }), h('b', { text: t.summary || '' })];
+        if (t.description) kids.push(h('div', { class: 'txt', style: 'white-space:pre-wrap', text: t.description }));
+        (t.attachments || []).forEach(function (a) {
+          var src = a.file && LIVE ? '/files/' + encodeURIComponent(t.key) + '/' + encodeURIComponent(a.file) + '?t=' + LIVE.token : '';
+          if (src && /^image\/(png|jpe?g|gif|webp)/.test(a.mime || '')) kids.push(h('a', { href: src, target: '_blank', rel: 'noopener', title: a.name }, [h('img', { src: src, alt: a.name, style: 'max-width:100%;border:1px solid var(--line);border-radius:8px' })]));
+          else kids.push(src ? h('a', { href: src, target: '_blank', rel: 'noopener', text: 'Attachment: ' + a.name }) : h('div', { class: 'sub', text: 'Attachment not downloaded: ' + a.name }));
+        });
+        if (t.comments && t.comments.length) { kids.push(h('div', { class: 'k', text: 'Comments (' + t.comments.length + ')' })); t.comments.forEach(function (c) { kids.push(h('div', { class: 'msg' }, [h('div', { class: 'k', text: (c.author || 'someone') + ' · ' + ago(c.at) }), rich(c.body || '')])); }); }
+        if (t.url) kids.push(h('a', { class: 'sub', href: t.url, target: '_blank', rel: 'noopener', text: 'Open ' + t.key }));
+        body.appendChild(h('div', { class: 'msg' }, kids));
+      });
+    }
+    var btn = h('button', { class: 'btn small', type: 'button', text: 'Reload', onclick: function () { loadTickets().then(draw); } });
+    drawer('left', [h('h2', { text: 'Tickets for this PR' }), h('div', { class: 'rowx' }, [btn, h('span', { class: 'sub', text: 'This shows what was last fetched. For newer ticket comments, ask Claude in the chat to fetch the tickets again, then press Reload.' })]), body], true);
+    draw();
+  }
+  function renderTabs() {
+    tabsEl.innerHTML = '';
+    var left = [], right = [];
+    if (view && view.leftTabs) left = view.leftTabs();
+    if (TICKETS.length) left.push(h('button', { class: 'tab', type: 'button', id: 'tab-tickets', text: 'Tickets (' + TICKETS.length + ')', onclick: openTickets }));
+    var open = S.chat.filter(function (m) { return m.role === 'user' && !m.answered; }).length;
+    right.push(h('button', { class: 'tab', type: 'button', id: 'tab-chat', text: 'Chat' + (S.chat.length ? ' (' + S.chat.length + ')' : '') + (open ? ' …' : ''), onclick: function () { openChat(view && view.fileAnchor ? view.fileAnchor() : null); } }));
+    right.push(h('button', { class: 'tab', type: 'button', id: 'tab-review', text: 'Review' + (S.comments.length ? ' (' + S.comments.length + ')' : ''), onclick: openReview }));
+    var npr = S.prComments ? S.prComments.line.length + S.prComments.general.length : 0;
+    right.push(h('button', { class: 'tab', type: 'button', id: 'tab-pr', text: 'On the PR' + (npr ? ' (' + npr + ')' : ''), onclick: openPrComments }));
+    if (left.length) tabsEl.appendChild(h('div', { class: 'tabs l' }, left));
+    tabsEl.appendChild(h('div', { class: 'tabs r' }, right));
+  }
+
+  function route() {
+    closeOver();
+    if (view && view.cleanup) view.cleanup();
+    view = null;
+    var m = /^#\/file\/(\d+)(?:\/([cr])(\d+))?/.exec(location.hash);
+    if (location.hash === '#/map') renderMap();
+    else if (m && files[+m[1] - 1]) renderFile(+m[1] - 1, m[2] === 'c' ? +m[3] - 1 : -1, m[2] === 'r' ? +m[3] : -1);
+    else if (files.length) renderFile(0, -1, -1);
+    else renderMap();
+    renderTabs();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', route);
+
+  function renderMap() {
+    document.title = 'Review: ' + (pr.title || 'changes');
+    var count = h('span', { class: 'sub', text: nDone() + ' of ' + files.length + ' reviewed' });
+    var rows = files.map(function (f, i) {
+      var a = attnCount(f), nc = S.comments.filter(function (c) { return c.path === f.path; }).length;
+      var box = h('input', { type: 'checkbox', 'aria-label': 'Reviewed: ' + f.path, onchange: function () { S.reviewed[f.path] = box.checked; count.textContent = nDone() + ' of ' + files.length + ' reviewed'; api('reviewed', { path: f.path, value: box.checked }).catch(function () {}); } });
+      box.checked = !!S.reviewed[f.path];
+      return h('tr', null, [
+        h('td', { text: String(i + 1) }),
+        h('td', null, [h('a', { class: 'file', href: '#/file/' + (i + 1), text: f.path }), f.summary ? h('div', { class: 'sub', text: f.summary }) : null]),
+        h('td', null, [h('span', { class: 'badge ' + f.status, text: f.status })]),
+        h('td', { text: f.skipped ? 'not shown: ' + f.skipped : String((f.changes || []).length) }),
+        h('td', null, [a ? h('span', { class: 'badge attn', text: a + ' to check' }) : null, nc ? h('span', { class: 'sub', text: ' ' + nc + ' comment' + (nc === 1 ? '' : 's') }) : null]),
+        h('td', null, [box])
+      ]);
+    });
+    var first = 0;
+    for (var i = 0; i < files.length; i++) { if (!S.reviewed[files[i].path]) { first = i; break; } }
+    app.innerHTML = '';
+    app.appendChild(h('div', { class: 'wrap' }, [
+      h('div', { class: 'bar' }, [
+        h('div', null, [h('div', { class: 'sub', text: 'Review code in context' + (pr.number ? ' · PR #' + pr.number : '') + (pr.base ? ' · ' + pr.base + ' … ' + (pr.head || 'HEAD') : '') + (pr.sha ? ' · ' + String(pr.sha).slice(0, 7) : '') }), h('div', { style: 'font-size:20px;font-weight:700', text: pr.title || 'Changes on this branch' })]),
+        h('a', { class: 'btn primary', href: '#/file/' + (first + 1), text: nDone() ? 'Continue with file ' + (first + 1) : 'Start with file 1' }),
+        pauseBtn()
+      ]),
+      pr.summary ? h('div', { text: pr.summary }) : null,
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:baseline;gap:12px' }, [h('div', { class: 'cap', text: files.length + ' changed files' }), count]),
+      h('div', { class: 'tablewrap' }, [h('table', null, [
+        h('thead', null, [h('tr', null, ['#', 'File', 'Status', 'Changes', 'Flags', 'Reviewed'].map(function (t) { return h('th', { text: t }); }))]),
+        h('tbody', null, rows)
+      ])])
+    ]));
+    view = { decorate: function () {} };
+  }
+
+  function renderFile(idx, wantChange, wantRow) {
+    var f = files[idx], N = files.length, changes = f.changes || [], lines = f.lines || [];
+    var deleted = f.status === 'deleted', sel = -1, skipScroll = false;
+    document.title = base(f.path) + ' · file ' + (idx + 1) + ' of ' + N;
+    var cnt = h('span', { class: 'sub', text: ' · ' + nDone() + ' reviewed' });
+    var box = h('input', { type: 'checkbox', id: 'rev', onchange: function () { S.reviewed[f.path] = box.checked; cnt.textContent = ' · ' + nDone() + ' reviewed'; api('reviewed', { path: f.path, value: box.checked }).catch(function () {}); } });
+    box.checked = !!S.reviewed[f.path];
+    var chips = [];
+    for (var j = Math.max(0, idx - 1); j <= Math.min(N - 1, idx + 2); j++) chips.push(h('a', { class: 'chip' + (j === idx ? ' cur' : '') + (S.reviewed[files[j].path] && j !== idx ? ' done' : ''), href: '#/file/' + (j + 1), title: files[j].path, text: (j + 1) + ' ' + base(files[j].path) + ' · ' + files[j].status }));
+    var rest = N - chips.length;
+    var code = h('div', { class: 'code', tabindex: '0', 'aria-label': 'Whole file, scrollable' });
+    var inner = h('div', { class: 'code-inner' });
+    var rowChange = {}, rowEls = [], marks = [];
+    changes.forEach(function (c, ci) { for (var r = c.startRow; r <= c.endRow; r++) rowChange[r] = ci; });
+    var refsByLine = {};
+    (f.refs || []).forEach(function (r) { (refsByLine[r.line] = refsByLine[r.line] || []).push(r); });
+    function lineNo(ln) { return ln.n != null ? ln.n : ln.o; }
+    lines.forEach(function (ln, ri) {
+      var ci = rowChange[ri], cls = 'row' + (ln.k === '+' ? ' add' : ln.k === '-' ? ' del' : '');
+      if (ci != null) cls += ' chg' + (changes[ci].level === 'attention' ? ' attn' : '');
+      var kids = [], t = ln.t, refs = (ln.k !== '-' || deleted) ? (refsByLine[lineNo(ln)] || []) : [], pos = 0;
+      refs.forEach(function (r) {
+        var at = t.indexOf(r.text, pos);
+        if (at < 0) return;
+        if (at > pos) kids.push(t.slice(pos, at));
+        kids.push(h('button', { class: 'ref', type: 'button', text: r.text, onclick: function () { r.types ? openTypes() : openEntity(r.id); } }));
+        pos = at + r.text.length;
+      });
+      kids.push(t.slice(pos) || (pos ? '' : ' '));
+      var mark = h('button', { class: 'mark', type: 'button', onclick: function () { openLine(ri); } });
+      marks.push(mark);
+      var el = h('div', { class: cls }, [h('span', { class: 'gut' }), h('button', { class: 'num', type: 'button', title: 'Comment or ask about this line', 'aria-label': (ln.k === '-' ? 'Removed line, old line ' : 'Line ') + lineNo(ln) + ': comment or ask', text: ln.k === '-' && !deleted ? '\u00b7\u00b7' : String(lineNo(ln)), onclick: function () { openLine(ri); } }), h('span', { class: 'sign', text: ln.k === ' ' ? ' ' : ln.k }), h('span', null, kids), mark]);
+      rowEls.push(el); inner.appendChild(el);
+    });
+    code.appendChild(inner);
+    function decorate() {
+      var byRow = {};
+      S.comments.forEach(function (c) { if (c.path === f.path && c.row != null) { byRow[c.row] = byRow[c.row] || { c: 0, q: 0, p: 0 }; byRow[c.row].c++; } });
+      S.chat.forEach(function (m) { if (m.role === 'user' && m.anchor && m.anchor.path === f.path && m.anchor.row != null) { byRow[m.anchor.row] = byRow[m.anchor.row] || { c: 0, q: 0, p: 0 }; byRow[m.anchor.row].q++; } });
+      prLine().forEach(function (c) { if (c.path !== f.path) return; var r = rowFor(c.path, c.line, c.side); if (r < 0) return; byRow[r] = byRow[r] || { c: 0, q: 0, p: 0 }; byRow[r].p++; });
+      marks.forEach(function (mk, ri) { var b = byRow[ri]; mk.textContent = b ? [b.c ? b.c + ' comment' + (b.c === 1 ? '' : 's') : '', b.q ? b.q + ' asked' : '', b.p ? b.p + ' on PR' : ''].filter(Boolean).join(' · ') : ''; });
+      box.checked = !!S.reviewed[f.path]; cnt.textContent = ' · ' + nDone() + ' reviewed';
+    }
+    var colL = h('div', { class: 'col' }), colR = h('div', { class: 'col' });
+    var wires = svg('svg', { class: 'wires', 'aria-hidden': 'true' });
+    var shown = lines.filter(function (l) { return l.k !== '-' || deleted; }).length;
+    var pane = h('div', { class: 'pane' }, [h('div', { class: 'pane-head', text: f.path + ' · ' + (f.skipped ? 'not shown' : 'whole file, ' + shown + ' lines') }), f.skipped ? h('div', { style: 'padding:24px', text: 'This file is not shown: ' + f.skipped + '.' }) : code]);
+    var stage = h('div', { class: 'stage' }, [colL, pane, colR, wires]);
+    var jumpBtns = [], baTab = null;
+    function changeName(ci) { return 'Change ' + (ci + 1) + (changes[ci].title ? ' · ' + changes[ci].title : ''); }
+    function syncSel() {
+      jumpBtns.forEach(function (b, ci) { b.classList.toggle('sel', ci === sel); b.setAttribute('aria-pressed', ci === sel ? 'true' : 'false'); });
+      if (baTab) baTab.textContent = 'Before / after: ' + (sel >= 0 ? 'change ' + (sel + 1) : 'whole file');
+    }
+    function scrollToRow(r) { var was = code.scrollTop; code.scrollTop = Math.max(0, r * LH - code.clientHeight * 0.3); if (code.scrollTop !== was) skipScroll = true; layout(); }
+    function jumpTo(ci) { if (!changes[ci]) return; sel = ci; syncSel(); scrollToRow(changes[ci].startRow); }
+    function cardFor(id, top, col) {
+      var e = ents[id] || { name: id, sub: 'No details recorded' };
+      col.appendChild(h('button', { class: 'card' + (e.attention ? ' attn' : e.external ? ' ext' : e.inPr ? ' inpr' : ''), type: 'button', style: 'top:' + top + 'px', title: e.name, onclick: function () { openEntity(id); } }, [h('b', { text: e.name || id }), h('span', { text: e.sub || '' })]));
+      return e;
+    }
+    function layout() {
+      colL.innerHTML = ''; colR.innerHTML = ''; while (wires.firstChild) wires.removeChild(wires.firstChild);
+      if (f.skipped) return;
+      var H = code.clientHeight, st = code.scrollTop, stageH = stage.clientHeight, vis = [];
+      changes.forEach(function (c, ci) {
+        var top = c.startRow * LH - st, bot = (c.endRow + 1) * LH - st;
+        if (bot <= 6 || top >= H - 6) return;
+        vis.push({ c: c, ci: ci, cy: HEAD + (Math.max(top, 0) + Math.min(bot, H)) / 2 });
+      });
+      var defs = svg('defs', {});
+      [['g', '#6E7781'], ['b', '#1F5FBF'], ['w', '#B45309']].forEach(function (p) {
+        var m = svg('marker', { id: 'ah-' + p[0], orient: 'auto', markerWidth: 6, markerHeight: 6, refX: 5, refY: 3 });
+        m.appendChild(svg('path', { d: 'M0 0 L6 3 L0 6 Z', fill: p[1] })); defs.appendChild(m);
+      });
+      wires.appendChild(defs);
+      if (!vis.length) { colL.appendChild(h('div', { class: 'hint', text: changes.length ? 'No change is in view. Keep scrolling, or use a jump button.' : 'This file has no changed lines (renamed only).' })); stage.classList.remove('scrolling'); return; }
+      [[colL, 'starts', true], [colR, 'uses', false]].forEach(function (side) {
+        var col = side[0], isLeft = side[2];
+        var groups = vis.map(function (v) {
+          var ids = (v.c[side[1]] || []).slice(), more = 0;
+          if (ids.length > MAXCARDS) { more = ids.length - (MAXCARDS - 1); ids = ids.slice(0, MAXCARDS - 1); }
+          var n = ids.length + (more ? 1 : 0) || 1;
+          return { v: v, ids: ids, more: more, all: v.c[side[1]] || [], h: n * CARD + (n - 1) * GAP };
+        });
+        var cursor = 0;
+        groups.forEach(function (g) { g.top = Math.max(g.v.cy - g.h / 2, cursor, 0); cursor = g.top + g.h + 14; });
+        var maxB = stageH;
+        for (var i = groups.length - 1; i >= 0; i--) { if (groups[i].top + groups[i].h > maxB) groups[i].top = Math.max(0, maxB - groups[i].h); maxB = groups[i].top - 14; }
+        var xCol = isLeft ? col.offsetLeft + col.offsetWidth : col.offsetLeft, xPane = isLeft ? pane.offsetLeft - 3 : pane.offsetLeft + pane.offsetWidth + 3;
+        groups.forEach(function (g) {
+          var y = g.top;
+          function wire(e) {
+            var yc = y + CARD / 2, kind = e && e.attention ? 'w' : e && e.inPr ? 'b' : 'g', color = kind === 'w' ? '#B45309' : kind === 'b' ? '#1F5FBF' : '#6E7781';
+            var x1 = isLeft ? xCol : xPane, y1 = isLeft ? yc : g.v.cy, x2 = isLeft ? xPane : xCol, y2 = isLeft ? g.v.cy : yc, dx = (x2 - x1) / 2;
+            wires.appendChild(svg('path', { d: 'M' + x1 + ' ' + y1 + ' C' + (x1 + dx) + ' ' + y1 + ',' + (x2 - dx) + ' ' + y2 + ',' + (x2 - 1) + ' ' + y2, fill: 'none', stroke: color, 'stroke-width': 2, 'marker-end': 'url(#ah-' + kind + ')' }));
+          }
+          if (!g.ids.length && !g.more) { col.appendChild(h('div', { class: 'card none', style: 'top:' + y + 'px' }, [h('b', { text: 'None found' }), h('span', { text: isLeft ? (deleted ? 'Nothing still points here' : 'Nothing found that calls this') : 'Uses nothing outside itself' })])); return; }
+          g.ids.forEach(function (id) { wire(cardFor(id, y, col)); y += CARD + GAP; });
+          if (g.more) { col.appendChild(h('button', { class: 'card', type: 'button', style: 'top:' + y + 'px', onclick: function () { openList(g.all, isLeft); } }, [h('b', { text: '+' + g.more + ' more' }), h('span', { text: 'Show the full list' })])); wire(null); }
+        });
+      });
+      stage.classList.remove('scrolling');
+    }
+    var timer = null, rz = null;
+    code.addEventListener('scroll', function () {
+      if (skipScroll) { skipScroll = false; return; }
+      if (sel !== -1) { sel = -1; syncSel(); }
+      stage.classList.add('scrolling'); clearTimeout(timer); timer = setTimeout(layout, 140);
+    });
+    function onResize() { clearTimeout(rz); rz = setTimeout(layout, 120); }
+    window.addEventListener('resize', onResize);
+
+    function askBtn(anchor, text) { return h('button', { class: 'btn small', type: 'button', text: text || 'Ask Claude about this', onclick: function () { openChat(anchor); } }); }
+    function openEntity(id) {
+      var e = ents[id];
+      if (!e) { drawer('left', [h('h2', { class: 'mono', text: id }), h('div', { text: 'No details were recorded for this.' })]); return; }
+      var kids = [h('h2', { class: 'mono', text: e.title || e.name || id })];
+      if (e.what) kids.push(sect('What it does', h('div', { text: e.what })));
+      if (e.status) kids.push(sect('In this PR', h('div', { text: e.status })));
+      if (e.where || e.snippet) {
+        var s = e.snippet, b2 = h('div', null, [e.where ? h('div', { class: 'mono', style: 'font-size:13px', text: e.where }) : null]);
+        if (s && s.lines && s.lines.length) {
+          var sn = h('div', { class: 'snip' + (e.attention ? ' attn' : '') });
+          s.lines.forEach(function (t, i) { var no = s.start != null ? s.start + i : null; sn.appendChild(h('div', { class: no != null && no === s.highlight ? 'hl' : '', text: (no != null ? String(no) + '  ' : '') + t })); });
+          b2.appendChild(sn);
+        }
+        kids.push(sect((s && s.label) || 'Where it lives', b2));
+      }
+      if (e.signature) kids.push(sect('Type or signature', h('div', { class: 'pre', text: e.signature })));
+      var fi = e.file ? fileIndex(e.file) : -1, row = [askBtn({ kind: 'entity', path: f.path, entity: id, label: (e.name || id) + ' (from ' + base(f.path) + ')' })];
+      if (fi >= 0 && fi !== idx) row.push(h('a', { class: 'btn small', href: '#/file/' + (fi + 1), text: 'Open ' + base(e.file) + ' (file ' + (fi + 1) + ')' }));
+      kids.push(h('div', { class: 'rowx' }, row));
+      drawer('left', kids);
+    }
+    function openList(ids, isLeft) {
+      drawer('left', [h('h2', { text: isLeft ? 'Everything that starts this code' : 'Everything this code uses' })].concat(ids.map(function (id) {
+        var e = ents[id] || { name: id };
+        return h('button', { class: 'btn', type: 'button', style: 'justify-content:flex-start', text: (e.name || id) + (e.sub ? ' · ' + e.sub : ''), onclick: function () { openEntity(id); } });
+      })));
+    }
+    function openTypes() {
+      var kids = [h('h2', { text: 'Types used in this file' })];
+      (f.types || []).forEach(function (t) { kids.push(h('div', null, [h('div', { class: 'pre', text: t.def || t.name }), t.where ? h('div', { class: 'sub mono', text: t.where }) : null, t.note ? h('div', { style: 'font-size:14px', text: t.note }) : null])); });
+      drawer('left', kids);
+    }
+    function openBA() {
+      var c = sel >= 0 ? changes[sel] : null, src = c || f;
+      var kids = [h('h2', { text: 'Before and after: ' + (c ? changeName(sel) : 'the whole file') })];
+      if (!c) kids.push(h('div', { class: 'sub', text: changes.length > 1 ? 'No change is selected, so this covers all ' + changes.length + ' changes in the file together. Pick one with a Jump to button to see just that change.' : base(f.path) }));
+      if (src.before || src.after) { kids.push(sect('Before', h('div', { text: src.before || 'Not recorded.' }))); kids.push(sect('After', h('div', { text: src.after || 'Not recorded.' }))); }
+      else kids.push(h('div', { text: (c ? c.note : f.summary) || 'No before and after was written for this.' }));
+      if (c && c.note) kids.push(sect(c.level === 'attention' ? 'Needs attention' : 'Note', h('div', { text: c.note })));
+      kids.push(h('div', { class: 'rowx' }, [askBtn(c ? { kind: 'change', path: f.path, change: sel, label: base(f.path) + ' · ' + changeName(sel) } : { kind: 'file', path: f.path, label: f.path })]));
+      drawer('left', kids);
+    }
+    function openLine(ri, prefill, editing) {
+      var ln = lines[ri]; if (!ln) return;
+      var no = lineNo(ln), side = ln.k === '-' ? 'LEFT' : 'RIGHT', label = base(f.path) + ' line ' + no + (ln.k === '-' ? ' (removed)' : '');
+      var anchor = { kind: 'line', path: f.path, row: ri, line: no, side: side, label: label };
+      var sn = h('div', { class: 'snip' });
+      for (var r = Math.max(0, ri - 2); r <= Math.min(lines.length - 1, ri + 2); r++) sn.appendChild(h('div', { class: r === ri ? 'hl' : '', text: String(lineNo(lines[r])).padStart(4) + ' ' + lines[r].k + ' ' + lines[r].t }));
+      var ta = h('textarea', { rows: '4', id: 'line-input', 'aria-label': 'Comment or question' });
+      if (editing) ta.value = editing.body; else if (prefill) ta.value = prefill;
+      var existing = h('div', { class: 'thread' });
+      function drawExisting() {
+        existing.innerHTML = '';
+        prLine().forEach(function (c) { if (c.path === f.path && rowFor(c.path, c.line, c.side) === ri) existing.appendChild(prCard(c, false)); });
+        S.comments.forEach(function (c) { if (c.path === f.path && c.row === ri && !(editing && editing.id === c.id)) existing.appendChild(h('div', { class: 'msg' }, [h('div', { class: 'k', text: 'Your review comment' }), rich(c.body), h('div', { class: 'rowx' }, [h('button', { class: 'btn small', type: 'button', text: 'Edit', onclick: function () { openLine(ri, null, c); } }), h('button', { class: 'btn small', type: 'button', text: 'Delete', onclick: function () { api('comment', { id: c.id, delete: true }).then(pull); } })])])); });
+        S.chat.forEach(function (m) { if (m.anchor && m.anchor.path === f.path && m.anchor.row === ri) existing.appendChild(h('div', { class: 'msg ' + m.role }, [h('div', { class: 'k', text: m.role === 'user' ? 'You asked' : 'Claude' }), rich(m.text)])); });
+      }
+      var saveBtn = h('button', { class: 'btn primary', type: 'button', text: editing ? 'Save changes' : 'Save as review comment', onclick: function () {
+        var t = ta.value.trim(); if (!t) return;
+        api('comment', editing ? { id: editing.id, body: t } : { path: f.path, row: ri, line: no, side: side, commentable: !!ln.c, body: t }).then(function () { ta.value = ''; return pull(); }).then(function () { editing ? closeOver() : drawExisting(); }).catch(function () { setOffline(true); });
+      } });
+      var askB = h('button', { class: 'btn', type: 'button', text: 'Ask Claude', onclick: function () { var t = ta.value.trim(); if (!t) { openChat(anchor); return; } api('ask', { text: t, anchor: anchor }).then(pull).then(function () { openChat(anchor); }).catch(function () { setOffline(true); }); } });
+      drawer('left', [h('h2', { text: (editing ? 'Edit comment on ' : '') + label }), sn,
+        ln.c ? null : h('div', { class: 'sub', text: 'This line is far from any change, so GitHub will not accept a line comment here. A comment will go in the review summary with its file and line.' }),
+        ta, h('div', { class: 'rowx' }, editing ? [saveBtn] : [saveBtn, askB]), existing]);
+      drawExisting(); ta.focus();
+      openRefresh = drawExisting;
+    }
+
+    app.innerHTML = '';
+    var prev = idx > 0 ? h('a', { class: 'btn', id: 'prev-file', href: '#/file/' + idx, text: 'Previous file' }) : h('span', { class: 'btn off', text: 'Previous file' });
+    var next = idx < N - 1 ? h('a', { class: 'btn primary', id: 'next-file', href: '#/file/' + (idx + 2), style: 'margin-left:auto', text: 'Next file' }) : h('a', { class: 'btn primary', id: 'next-file', href: '#/map', style: 'margin-left:auto', text: 'Last file: back to the list' });
+    jumpBtns = changes.map(function (c, ci) { return h('button', { class: 'jump' + (c.level === 'attention' ? ' attn' : ''), type: 'button', 'aria-pressed': 'false', text: changeName(ci), onclick: function () { jumpTo(ci); } }); });
+    app.appendChild(h('div', { class: 'wrap' }, [
+      h('div', { class: 'bar' }, [
+        h('a', { class: 'btn', id: 'back-map', href: '#/map', text: 'Back to map' }),
+        h('div', { style: 'text-align:center;min-width:0' }, [h('div', { class: 'sub', text: 'All files, one at a time' + (pr.title ? ' · ' + pr.title : '') + (pr.sha ? ' · ' + String(pr.sha).slice(0, 7) : '') }), h('div', { class: 'mono', style: 'font-size:17px;font-weight:700;overflow-wrap:anywhere', text: f.path })]),
+        h('span', { class: 'badge ' + f.status, text: f.status + ' file' + (changes.length > 1 ? ' · ' + changes.length + ' changes' : '') }),
+        pauseBtn()
+      ]),
+      h('div', { class: 'filebar' }, [
+        h('div', { class: 'rowx', style: 'justify-content:space-between' }, [h('div', null, [h('b', { text: 'File ' + (idx + 1) + ' of ' + N }), cnt]), h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:36px;font-size:14px', for: 'rev' }, [box, 'Mark this file as reviewed'])]),
+        h('div', { class: 'rowx' }, [prev].concat(chips, [rest > 0 ? h('a', { class: 'sub', href: '#/map', text: rest + ' more files' }) : null, next]))
+      ]),
+      f.flow && f.flow.length ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [h('div', { class: 'cap', text: 'Where this code sits' }), h('div', { class: 'flow' }, f.flow.reduce(function (acc, s, i) { if (i) acc.push(h('span', { 'aria-hidden': 'true', class: 'sub', text: '›' })); acc.push(h('span', { class: 'step ' + (s.state || '') }, [h('b', { text: s.label }), s.note ? ' · ' + s.note : null])); return acc; }, []))]) : null,
+      f.summary ? h('div', { class: 'sub', style: 'font-size:14px', text: f.summary }) : null,
+      changes.length ? h('div', { class: 'jumps' }, [h('b', { text: 'Jump to' })].concat(jumpBtns)) : null,
+      h('div', { class: 'heads' }, [h('div', { class: 'cap', text: deleted ? 'What still points at this file' : 'What starts this code' }), h('div'), h('div', { class: 'cap', text: deleted ? 'What this code used' : 'What this code uses' })]),
+      stage,
+      changes.some(function (c) { return c.note; }) ? h('div', { class: 'notes' }, changes.map(function (c, ci) {
+        return c.note ? h('div', { class: 'note ' + (c.level || '') }, [h('span', { class: 'k', text: changeName(ci) + (c.level === 'attention' ? ' · needs attention' : '') }), h('span', { text: c.note }), h('div', { class: 'rowx' }, [h('button', { class: 'btn small', type: 'button', text: 'Go to this change', onclick: function () { jumpTo(ci); window.scrollTo(0, stage.offsetTop - 120); } }), askBtn({ kind: 'change', path: f.path, change: ci, label: base(f.path) + ' · ' + changeName(ci) })])]) : null;
+      })) : null,
+      h('div', { class: 'legend' }, [
+        h('span', null, [h('i', { class: 'sw', style: 'background:var(--add);border-color:var(--add-edge)' }), 'Added line']),
+        h('span', null, [h('i', { class: 'sw', style: 'background:var(--del);border-color:var(--del-edge)' }), 'Removed line']),
+        h('span', null, [h('i', { class: 'sw', style: 'background:var(--blue-bg);border-color:var(--blue)' }), 'Also changed in this PR']),
+        h('span', null, [h('i', { class: 'sw', style: 'background:var(--warn-bg);border:3px solid var(--warn)' }), 'Needs your attention']),
+        h('span', null, ['Click a line number to comment or ask Claude. Click a card or an underlined name for details. Side cards hide while you scroll.'])
+      ])
+    ]));
+    view = {
+      path: f.path, decorate: decorate, openLine: openLine,
+      fileAnchor: function () { return sel >= 0 ? { kind: 'change', path: f.path, change: sel, label: base(f.path) + ' · ' + changeName(sel) } : { kind: 'file', path: f.path, label: f.path }; },
+      leftTabs: function () {
+        baTab = h('button', { class: 'tab', type: 'button', id: 'tab-ba', onclick: openBA });
+        var t = [baTab];
+        if (f.types && f.types.length) t.push(h('button', { class: 'tab', type: 'button', id: 'tab-types', text: 'Types', onclick: openTypes }));
+        syncSel(); return t;
+      },
+      cleanup: function () { window.removeEventListener('resize', onResize); clearTimeout(timer); clearTimeout(rz); }
+    };
+    decorate();
+    if (!f.skipped) {
+      if (wantRow >= 0 && rowEls[wantRow]) { rowEls[wantRow].classList.add('target'); scrollToRow(wantRow); }
+      else if (wantChange >= 0 && changes[wantChange]) jumpTo(wantChange);
+      else if (changes.length) scrollToRow(changes[0].startRow);
+      else layout();
+    }
+    if (pendingLine && pendingLine.path === f.path) {
+      var p = pendingLine; pendingLine = null;
+      var ed = p.edit ? S.comments.filter(function (c) { return c.id === p.edit; })[0] : null;
+      setTimeout(function () { openLine(p.row, p.text || null, ed || null); }, 0);
+    }
+  }
+
+  route();
+  if (LIVE) { pull().then(function () { route(); }); loadTickets(); setInterval(pull, 1500); }
+})();
+</script>
+</body>
+</html>
