@@ -100,7 +100,26 @@ textarea{width:100%;padding:8px 10px;border:1px solid var(--edge);border-radius:
 .tabs.r .tab{border-right:0;border-radius:10px 0 0 10px}
 .msg{padding:10px 12px;border-radius:10px;border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
 .msg.claude{background:var(--blue-bg);border-color:var(--blue)}
-.msg .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.msg .txt,.txt{overflow-wrap:anywhere}
+.md{display:flex;flex-direction:column;gap:8px}
+.md p{margin:0;white-space:pre-wrap}
+.md ul,.md ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:3px}
+.md li>ul,.md li>ol{margin-top:3px}
+.md .mh{font-weight:700;line-height:1.3}.md .mh1{font-size:17px}.md .mh2{font-size:16px}.md .mh3{font-size:15px}
+.md blockquote{margin:0;padding:2px 0 2px 10px;border-left:3px solid var(--edge);color:var(--mute)}
+.md hr{width:100%;border:0;border-top:1px solid var(--line);margin:2px 0}
+.md .mtable{overflow-x:auto}.md table{border-collapse:collapse;font-size:13px}.md th,.md td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}.md th{background:rgba(27,31,36,.06)}
+.md .pre{white-space:pre;overflow-x:auto}
+.drawer.chat{height:calc(100vh - 88px);overflow:hidden}
+.drawer.chat>*{flex:none}
+.drawer.chat>.thread{flex:1 1 auto;min-height:0;overflow-y:auto;padding-right:6px}
+.drawer.chat textarea{resize:none;height:84px}
+.drawer.chat textarea:disabled{background:var(--panel);color:var(--mute)}
+.busy{align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--blue-bg);border:1px solid var(--blue);font-weight:600;font-size:14px}
+.busy.stuck{background:var(--warn-bg);border-color:var(--warn);color:var(--warn-ink)}
+.spin{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--blue);border-top-color:transparent;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
 .msg code,.txt code{font:13px var(--mono);background:rgba(27,31,36,.08);padding:1px 4px;border-radius:4px}
 .anchor{align-self:flex-start;border:1px solid var(--edge);background:#fff;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .thread{display:flex;flex-direction:column;gap:10px}
@@ -147,12 +166,63 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
   function fileIndex(p) { for (var i = 0; i < files.length; i++) if (files[i].path === p) return i; return -1; }
   function nDone() { return files.filter(function (f) { return S.reviewed[f.path]; }).length; }
   function attnCount(f) { return (f.changes || []).filter(function (c) { return c.level === 'attention'; }).length; }
+  // Small, safe Markdown renderer: builds DOM nodes only, never sets innerHTML.
+  function inline(parent, s) {
+    var re = /(`+)([\s\S]+?)\1|\*\*([^\n]+?)\*\*|__([^\n]+?)__|\*([^\s*][^\n*]*?)\*|\b_([^\s_][^\n_]*?)_\b|\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>)\]]+)/g, last = 0, m;
+    while ((m = re.exec(s))) {
+      if (m.index > last) parent.appendChild(document.createTextNode(s.slice(last, m.index)));
+      if (m[2] != null) parent.appendChild(h('code', { text: m[2] }));
+      else if (m[3] != null || m[4] != null) inline(parent.appendChild(h('strong')), m[3] != null ? m[3] : m[4]);
+      else if (m[5] != null || m[6] != null) inline(parent.appendChild(h('em')), m[5] != null ? m[5] : m[6]);
+      else if (m[7] != null) parent.appendChild(h('a', { href: m[8], target: '_blank', rel: 'noopener', text: m[7] }));
+      else parent.appendChild(h('a', { href: m[9], target: '_blank', rel: 'noopener', text: m[9] }));
+      last = re.lastIndex;
+    }
+    if (last < s.length) parent.appendChild(document.createTextNode(s.slice(last)));
+    return parent;
+  }
   function rich(text) {
-    var out = h('div', { class: 'txt' });
-    String(text).split(/```[a-zA-Z]*\n?/).forEach(function (part, i) {
-      if (i % 2) { out.appendChild(h('div', { class: 'pre', text: part.replace(/\n$/, '') })); return; }
-      part.split('`').forEach(function (p, j) { if (p) out.appendChild(j % 2 ? h('code', { text: p }) : document.createTextNode(p)); });
-    });
+    var out = h('div', { class: 'txt md' }), lines = String(text == null ? '' : text).replace(/\r/g, '').split('\n'), i = 0, m;
+    var isList = function (l) { return /^\s*([-*+]|\d+[.)])\s+/.exec(l); };
+    var cells = function (l) { return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); }); };
+    while (i < lines.length) {
+      var l = lines[i];
+      if (!l.trim()) { i++; continue; }
+      if ((m = /^\s*(```|~~~)/.exec(l))) {
+        var buf = []; i++;
+        while (i < lines.length && lines[i].trim().indexOf(m[1]) !== 0) buf.push(lines[i++]);
+        i++; out.appendChild(h('div', { class: 'pre', text: buf.join('\n') })); continue;
+      }
+      if ((m = /^(#{1,6})\s+(.*)$/.exec(l))) { inline(out.appendChild(h('div', { class: 'mh mh' + Math.min(m[1].length, 3) })), m[2].replace(/\s+#+\s*$/, '')); i++; continue; }
+      if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)) { out.appendChild(h('hr')); i++; continue; }
+      if (/^\s*>/.test(l)) {
+        var q = [];
+        while (i < lines.length && /^\s*>/.test(lines[i])) q.push(lines[i++].replace(/^\s*>\s?/, ''));
+        var bq = h('blockquote'); bq.appendChild(rich(q.join('\n'))); out.appendChild(bq); continue;
+      }
+      if (l.indexOf('|') >= 0 && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(lines[i + 1])) {
+        var head = cells(l), tb = h('tbody'); i += 2;
+        while (i < lines.length && lines[i].indexOf('|') >= 0 && lines[i].trim()) { var tr = h('tr'); cells(lines[i++]).forEach(function (c) { inline(tr.appendChild(h('td')), c); }); tb.appendChild(tr); }
+        var htr = h('tr'); head.forEach(function (c) { inline(htr.appendChild(h('th')), c); });
+        out.appendChild(h('div', { class: 'mtable' }, [h('table', null, [h('thead', null, [htr]), tb])])); continue;
+      }
+      if (isList(l)) {
+        var stack = [];
+        while (i < lines.length && (isList(lines[i]) || (/^\s+\S/.test(lines[i]) && stack.length))) {
+          var lm = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(lines[i]);
+          if (!lm) { var li0 = stack[stack.length - 1].last; if (li0) { li0.appendChild(document.createTextNode(' ')); inline(li0, lines[i].trim()); } i++; continue; }
+          var ind = lm[1].replace(/\t/g, '  ').length, ord = /\d/.test(lm[2]);
+          while (stack.length > 1 && ind < stack[stack.length - 1].ind) stack.pop();
+          var top = stack[stack.length - 1];
+          if (!top || ind > top.ind + 1) { var el = h(ord ? 'ol' : 'ul'); ((top && top.last) || out).appendChild(el); top = { el: el, ind: ind, last: null }; stack.push(top); }
+          top.last = inline(top.el.appendChild(h('li')), lm[3]); i++;
+        }
+        continue;
+      }
+      var para = [];
+      while (i < lines.length && lines[i].trim() && !/^\s*(```|~~~|#{1,6}\s|>)/.test(lines[i]) && !isList(lines[i])) para.push(lines[i++]);
+      inline(out.appendChild(h('p')), para.join('\n'));
+    }
     return out;
   }
 
@@ -260,7 +330,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
 
   function openChat(anchor, prefill) {
     var cur = anchor || null;
-    var thread = h('div', { class: 'thread' }), status = h('div', { class: 'sub' });
+    var thread = h('div', { class: 'thread' }), status = h('div', { class: 'sub' }), busy = h('div', { class: 'busy', role: 'status', style: 'display:none' }), sending = false;
     var about = h('div', { class: 'rowx' });
     var ta = h('textarea', { rows: '3', id: 'chat-input', 'aria-label': 'Your question' });
     if (prefill) ta.value = prefill;
@@ -270,7 +340,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       else about.appendChild(h('span', { class: 'sub', text: 'About: the review in general. Start from a line, a card or a flagged change to ask about that spot.' }));
     }
     function draw() {
-      var stick = d.scrollHeight - d.scrollTop - d.clientHeight < 80;
+      var stick = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80;
       thread.innerHTML = '';
       if (!S.chat.length) thread.appendChild(h('div', { class: 'sub', text: 'Nothing asked yet.' }));
       S.chat.forEach(function (m) {
@@ -285,17 +355,23 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
         thread.appendChild(h('div', { class: 'msg ' + m.role }, kids));
       });
       var waiting = S.chat.some(function (m) { return m.role === 'user' && !m.answered; });
-      if (waiting) thread.appendChild(h('div', { class: 'sub', text: S.listening ? 'Claude is working on it…' : 'Waiting for Claude. It is not listening right now: in the terminal, tell it to continue the review.' }));
+      busy.innerHTML = ''; busy.style.display = waiting ? 'flex' : 'none';
+      if (waiting) { if (S.listening) busy.appendChild(h('span', { class: 'spin', 'aria-hidden': 'true' })); busy.appendChild(h('span', { text: S.listening ? 'Claude is working on your question…' : 'Your question is waiting. Claude is not listening right now: in the terminal, tell it to continue the review.' })); }
+      busy.className = 'busy' + (waiting && !S.listening ? ' stuck' : '');
+      ta.disabled = waiting || sending; send.disabled = waiting || sending;
+      ta.placeholder = waiting ? 'One question at a time. You can ask the next one when Claude has answered.' : 'Ask Claude…';
       status.textContent = !LIVE ? 'Chat needs the review server.' : S.listening ? 'Claude is listening in your terminal.' : 'Claude is not listening right now. In the terminal, tell it to continue the review.';
-      if (stick) d.scrollTop = d.scrollHeight;
+      if (stick) thread.scrollTop = thread.scrollHeight;
     }
     var send = h('button', { class: 'btn primary', type: 'button', text: 'Ask Claude', onclick: function () {
-      var t = ta.value.trim(); if (!t) return;
-      send.disabled = true;
-      api('ask', { text: t, anchor: cur }).then(function () { ta.value = ''; send.disabled = false; return pull(); }).then(function () { d.scrollTop = d.scrollHeight; }).catch(function () { send.disabled = false; setOffline(true); });
+      var t = ta.value.trim(); if (!t || sending) return;
+      sending = true; send.disabled = true; ta.disabled = true;
+      api('ask', { text: t, anchor: cur }).then(function (out) { sending = false; if (out && out.ok) ta.value = ''; return pull(); }).then(function () { draw(); thread.scrollTop = thread.scrollHeight; }).catch(function () { sending = false; draw(); setOffline(true); });
     } });
-    var d = drawer('right', [h('h2', { text: 'Conversation with Claude' }), status, thread, about, ta, h('div', { class: 'rowx' }, [send])], true);
-    drawAbout(); draw(); d.scrollTop = d.scrollHeight; ta.focus();
+    var d = drawer('right', [h('h2', { text: 'Conversation with Claude' }), status, thread, busy, about, ta, h('div', { class: 'rowx' }, [send])], true);
+    ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send.click(); } });
+    d.classList.add('chat');
+    drawAbout(); draw(); thread.scrollTop = thread.scrollHeight; ta.focus();
     openRefresh = draw;
   }
   var pendingLine = null;
@@ -636,7 +712,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
         var t = ta.value.trim(); if (!t) return;
         api('comment', editing ? { id: editing.id, body: t } : { path: f.path, row: ri, line: no, side: side, commentable: !!ln.c, body: t }).then(function () { ta.value = ''; return pull(); }).then(function () { editing ? closeOver() : drawExisting(); }).catch(function () { setOffline(true); });
       } });
-      var askB = h('button', { class: 'btn', type: 'button', text: 'Ask Claude', onclick: function () { var t = ta.value.trim(); if (!t) { openChat(anchor); return; } api('ask', { text: t, anchor: anchor }).then(pull).then(function () { openChat(anchor); }).catch(function () { setOffline(true); }); } });
+      var askB = h('button', { class: 'btn', type: 'button', text: 'Ask Claude', onclick: function () { var t = ta.value.trim(); if (!t || S.chat.some(function (m) { return m.role === 'user' && !m.answered; })) { openChat(anchor, t); return; } api('ask', { text: t, anchor: anchor }).then(pull).then(function () { openChat(anchor); }).catch(function () { setOffline(true); }); } });
       drawer('left', [h('h2', { text: (editing ? 'Edit comment on ' : '') + label }), sn,
         ln.c ? null : h('div', { class: 'sub', text: 'This line is far from any change, so GitHub will not accept a line comment here. A comment will go in the review summary with its file and line.' }),
         ta, h('div', { class: 'rowx' }, editing ? [saveBtn] : [saveBtn, askB]), existing]);
@@ -659,6 +735,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
         h('div', { class: 'rowx', style: 'justify-content:space-between' }, [h('div', null, [h('b', { text: 'File ' + (idx + 1) + ' of ' + N }), cnt]), h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:36px;font-size:14px', for: 'rev' }, [box, 'Mark this file as reviewed'])]),
         h('div', { class: 'rowx' }, [prev].concat(chips, [rest > 0 ? h('a', { class: 'sub', href: '#/map', text: rest + ' more files' }) : null, next]))
       ]),
+      !(f.flow && f.flow.length) && !f.skipped ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [h('div', { class: 'cap', text: 'Where this code sits' }), h('div', { class: 'rowx' }, [h('span', { class: 'sub', text: 'Claude did not describe where this file sits in the flow.' }), h('button', { class: 'btn small', type: 'button', text: 'Ask Claude where this sits', onclick: function () { openChat({ kind: 'file', path: f.path, label: f.path }, 'Where does this file sit in the overall flow? What runs before it and what runs after it?'); } })])]) : null,
       f.flow && f.flow.length ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [h('div', { class: 'cap', text: 'Where this code sits' }), h('div', { class: 'flow' }, f.flow.reduce(function (acc, s, i) { if (i) acc.push(h('span', { 'aria-hidden': 'true', class: 'sub', text: '›' })); acc.push(h('span', { class: 'step ' + (s.state || '') }, [h('b', { text: s.label }), s.note ? ' · ' + s.note : null])); return acc; }, []))]) : null,
       f.summary ? h('div', { class: 'sub', style: 'font-size:14px', text: f.summary }) : null,
       changes.length ? h('div', { class: 'jumps' }, [h('b', { text: 'Jump to' })].concat(jumpBtns)) : null,
