@@ -103,6 +103,8 @@ Claude answers from your terminal session, with the whole repository available. 
 
 ![The chat panel with a question anchored to a change](docs/chat.png)
 
+You ask one question at a time: while Claude is working, the message box is locked and a "Claude is working on your question" line sits just above it. Answers are formatted (lists, code blocks, tables), the conversation scrolls, and the message box stays at the bottom. Ctrl+Enter sends.
+
 Claude can only answer while it is listening. The Chat tab tells you when it is not; if so, go to the terminal and tell it to continue the review.
 
 ## Writing and submitting your review

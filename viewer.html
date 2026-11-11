@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review code in context</title>
+<title>Review in Context</title>
 <style>
 :root{--ink:#1B1F24;--mute:#57606A;--line:#C9CED6;--edge:#8C959F;--panel:#F4F5F7;--blue:#1F5FBF;--blue-bg:#E8F0FB;--blue-ink:#174A96;--warn:#B45309;--warn-bg:#FFF4E5;--warn-ink:#8A3F06;--add:#E6FFEC;--add-edge:#1A7F37;--del:#FFEBE9;--del-edge:#CF222E;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
 *{box-sizing:border-box}
@@ -502,8 +502,9 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
   }
   window.addEventListener('hashchange', route);
 
+  function pageTitle() { return 'Review in Context' + (pr.number ? ' - PR #' + pr.number : '') + (pr.title ? ' - ' + pr.title : ''); }
   function renderMap() {
-    document.title = 'Review: ' + (pr.title || 'changes');
+    document.title = pageTitle();
     var count = h('span', { class: 'sub', text: nDone() + ' of ' + files.length + ' reviewed' });
     var rows = files.map(function (f, i) {
       var a = attnCount(f), nc = S.comments.filter(function (c) { return c.path === f.path; }).length;
@@ -523,7 +524,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     app.innerHTML = '';
     app.appendChild(h('div', { class: 'wrap' }, [
       h('div', { class: 'bar' }, [
-        h('div', null, [h('div', { class: 'sub', text: 'Review code in context' + (pr.number ? ' · PR #' + pr.number : '') + (pr.base ? ' · ' + pr.base + ' … ' + (pr.head || 'HEAD') : '') + (pr.sha ? ' · ' + String(pr.sha).slice(0, 7) : '') }), h('div', { style: 'font-size:20px;font-weight:700', text: pr.title || 'Changes on this branch' })]),
+        h('div', null, [h('div', { class: 'sub', text: 'Review in Context' + (pr.number ? ' - PR #' + pr.number : '') + (pr.base ? ' · ' + pr.base + ' … ' + (pr.head || 'HEAD') : '') + (pr.sha ? ' · ' + String(pr.sha).slice(0, 7) : '') }), h('div', { style: 'font-size:20px;font-weight:700', text: pr.title || 'Changes on this branch' })]),
         h('a', { class: 'btn primary', href: '#/file/' + (first + 1), text: nDone() ? 'Continue with file ' + (first + 1) : 'Start with file 1' }),
         pauseBtn()
       ]),
@@ -540,7 +541,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
   function renderFile(idx, wantChange, wantRow) {
     var f = files[idx], N = files.length, changes = f.changes || [], lines = f.lines || [];
     var deleted = f.status === 'deleted', sel = -1, skipScroll = false;
-    document.title = base(f.path) + ' · file ' + (idx + 1) + ' of ' + N;
+    document.title = pageTitle();
     var cnt = h('span', { class: 'sub', text: ' · ' + nDone() + ' reviewed' });
     var box = h('input', { type: 'checkbox', id: 'rev', onchange: function () { S.reviewed[f.path] = box.checked; cnt.textContent = ' · ' + nDone() + ' reviewed'; api('reviewed', { path: f.path, value: box.checked }).catch(function () {}); } });
     box.checked = !!S.reviewed[f.path];
