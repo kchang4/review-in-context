@@ -114,7 +114,7 @@ Shape of the file:
 }
 ```
 
-- `flow` is optional: the path a request takes at run time, with this file's step marked. `state` is one of `here`, `changed`, `unchanged`, `external`. Leave it out when there is no meaningful path.
+- `flow` is required for every file: it fills the "Where this code sits" strip at the top of the page. Give three to six steps in the order things happen at run time (what triggers this code, this file, what it hands off to), with exactly one step for this file marked `"state": "here"`. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. For a file with no run-time path (config, types, docs, tests), describe what reads or depends on it instead, for example build → this config → the Lambda that loads it. `rcc build` warns about any file without one.
 - `refs` make a name in the code clickable. `line` is the new line number (the old one for a deleted file) and `text` must appear on that line.
 - `level` is `attention`, `ok`, or left out.
 - `types` are the type definitions a reader needs for this file, copied from the code.
@@ -141,7 +141,7 @@ Loop:
    your answer
    EOF
    ```
-   and go back to 1.
+   The `reply` command sends the answer and then keeps listening by itself: it blocks like `wait 270` and prints the next `IDLE`, `QUESTION`, `PAUSED` or `FINISHED`. Run it with the same 300000 ms timeout and handle its output exactly as in this list. Never end your turn after answering: the reviewer can only ask one question at a time and the page stays locked until you are listening again.
 4. `PAUSED`: the reviewer pressed "Pause session" on the page because they are stepping away. Run `rcc stop`, stop looping, and tell them in one line that everything is saved and `/review-code-in-context --resume` picks it up. Do not post or summarise anything.
 5. `FINISHED`: the reviewer submitted the review. Report what happened (the review link, or the file the review was saved to), run `rcc stop`, and stop looping.
 

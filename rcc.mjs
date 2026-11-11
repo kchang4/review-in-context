@@ -155,6 +155,7 @@ function merge() {
   const files = sk.files.map((f) => {
     const a = afiles[f.path] || {};
     if (!afiles[f.path] && !f.skipped) warn.push('no annotations for ' + f.path);
+    if (afiles[f.path] && !f.skipped && !((a.flow || []).some((s) => s.state === 'here'))) warn.push(f.path + ': no "flow" with a step marked "here". Every file needs one so the page can show "Where this code sits".');
     if (a.changes && a.changes.length !== f.changes.length) warn.push(f.path + ': annotations have ' + a.changes.length + ' changes, the diff has ' + f.changes.length);
     const changes = f.changes.map((c, k) => Object.assign({}, c, (a.changes || [])[k] || {}));
     changes.forEach((c, k) => ['starts', 'uses'].forEach((s) => (c[s] || []).forEach((id) => { if (!ents[id]) warn.push(f.path + ' change ' + (k + 1) + ': unknown entity id "' + id + '"'); })));
@@ -411,7 +412,7 @@ function serve() {
         else state.comments.push({ id: 'c' + (++state.seq), path: b.path, line: b.line, side: b.side || 'RIGHT', row: b.row, commentable: !!b.commentable, body: String(b.body || '') });
         persist(); return send(200, { ok: true, comments: state.comments });
       }
-      if (r === 'ask') { state.finished = false; state.paused = false; state.chat.push({ id: 'q' + (++state.seq), role: 'user', text: String(b.text || ''), anchor: b.anchor || null, at: Date.now(), answered: false }); persist(); flush(); return send(200, { ok: true }); }
+      if (r === 'ask') { if (state.chat.some((m) => m.role === 'user' && !m.answered)) return send(200, { ok: false, busy: true }); state.finished = false; state.paused = false; state.chat.push({ id: 'q' + (++state.seq), role: 'user', text: String(b.text || ''), anchor: b.anchor || null, at: Date.now(), answered: false }); persist(); flush(); return send(200, { ok: true }); }
       if (r === 'reply') { const m = state.chat.find((x) => x.id === b.id); if (m) m.answered = true; state.chat.push({ id: 'a' + (++state.seq), role: 'claude', text: String(b.text || ''), anchor: m ? m.anchor : null, replyTo: b.id, at: Date.now() }); persist(); lastWait = Date.now(); return send(200, { ok: true }); }
       if (r === 'submit') { const out = submit(b.event || 'COMMENT', b.body || ''); if (out.ok) { if (out.url) refreshPr(); state.submitted = { event: b.event || 'COMMENT', url: out.url || '', file: out.file || '', note: out.note || '', at: Date.now() }; state.finished = true; persist(); flush(); } return send(200, out); }
       if (r === 'finish') { state.finished = true; state.paused = !!b.paused; state.pausedReason = ''; persist(); flush(); return send(200, { ok: true }); }
@@ -459,7 +460,9 @@ async function replyCmd(id) {
   const text = fs.readFileSync(0, 'utf8').trim();
   if (!id || !text) die('usage: reply <question id>  with the answer on stdin');
   await api(info, 'POST', '/api/reply', { id, text });
-  console.log('Sent.');
+  if (ARGV.includes('--no-wait')) return console.log('Sent.');
+  console.log('Sent. Still listening for the next question...\n');
+  await waitCmd(270);
 }
 
 function sessionsCmd() {

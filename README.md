@@ -95,6 +95,10 @@ Update with `git pull` inside that folder. Remove it by deleting the folder. Sav
 
 ![The details panel for a caller that was not updated](docs/details-panel.png)
 
+### Dark mode
+
+The page follows your system's light or dark setting. The **Dark mode / Light mode** button at the top right switches it, and the choice is remembered in that browser.
+
 ## Asking Claude
 
 Click a line number, a card, or a flagged change and choose **Ask Claude**. Your question is sent with the file, the line and the surrounding code, so "why is this here?" is enough.
