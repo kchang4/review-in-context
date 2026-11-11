@@ -148,7 +148,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
   var LH = 22, HEAD = 36, CARD = 58, GAP = 8, MAXCARDS = 4;
   var files = R.files, ents = R.entities || {}, pr = R.pr || {}, LIVE = window.RCC || null;
   var S = { reviewed: {}, comments: [], chat: [], submitted: null, listening: false, canPost: false, pr: {}, prComments: null };
-  var TICKETS = [];
+  var TICKETS = [], dataVersion = LIVE && LIVE.version, reloading = false;
   var view = null, openRefresh = null, summaryDraft = '', verdict = 'COMMENT', offline = false, paused = false, pausedReason = '', active = false, idleShown = false, pausedShown = false;
 
   function h(tag, attrs, kids) {
@@ -318,8 +318,30 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       setOffline(false);
       var sig = JSON.stringify([st.reviewed, st.comments, st.chat.length, st.chat.filter(function (m) { return m.answered; }).length, st.submitted, st.listening, st.prComments ? st.prComments.fetchedAt : 0]);
       S = st; idleBox(st.idleLeft);
+      if (st.dataVersion != null && dataVersion != null && st.dataVersion !== dataVersion) return reloadData(st.dataVersion);
       if (sig !== lastSig) { lastSig = sig; renderTabs(); if (view && view.decorate) view.decorate(); if (openRefresh) openRefresh(); }
     }).catch(function () { if (LIVE && !offline) setOffline(true); });
+  }
+
+  // The analysis was rebuilt while this page was open: swap in the new data and redraw in the same place.
+  // Open file, change and row come from the URL hash; reviewed ticks and draft comments live on the server.
+  function reloadData(version) {
+    if (reloading) return Promise.resolve();
+    reloading = true;
+    return api('data').then(function (r) {
+      files = r.data.files; ents = r.data.entities || {}; pr = r.data.pr || {}; dataVersion = r.version;
+      var y = window.scrollY;
+      lastSig = null; route(); window.scrollTo(0, y);
+      loadTickets();
+      toast('The review was updated with a newer analysis.');
+    }).catch(function () {}).then(function () { reloading = false; });
+  }
+  function toast(text) {
+    var old = document.getElementById('toast'); if (old) old.remove();
+    var t = h('div', { id: 'toast', class: 'banner', role: 'status', text: text });
+    t.style.bottom = '48px';
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.remove(); }, 4000);
   }
 
   function closeOver() { over.innerHTML = ''; openRefresh = null; }
@@ -648,7 +670,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
             var x1 = isLeft ? xCol : xPane, y1 = isLeft ? yc : g.v.cy, x2 = isLeft ? xPane : xCol, y2 = isLeft ? g.v.cy : yc, dx = (x2 - x1) / 2;
             wires.appendChild(svg('path', { d: 'M' + x1 + ' ' + y1 + ' C' + (x1 + dx) + ' ' + y1 + ',' + (x2 - dx) + ' ' + y2 + ',' + (x2 - 1) + ' ' + y2, fill: 'none', stroke: color, 'stroke-width': 2, 'marker-end': 'url(#ah-' + kind + ')' }));
           }
-          if (!g.ids.length && !g.more) { col.appendChild(h('div', { class: 'card none', style: 'top:' + y + 'px' }, [h('b', { text: 'None found' }), h('span', { text: isLeft ? (deleted ? 'Nothing still points here' : 'Nothing found that calls this') : 'Uses nothing outside itself' })])); return; }
+          if (!g.ids.length && !g.more) { col.appendChild(h('div', { class: 'card none', style: 'top:' + y + 'px' }, [h('b', { text: 'None found' }), h('span', { text: (isLeft ? g.v.c.startsNone : g.v.c.usesNone) || (isLeft ? (deleted ? 'Nothing still points here' : 'Nothing found that calls this') : 'Uses nothing outside itself') })])); return; }
           g.ids.forEach(function (id) { wire(cardFor(id, y, col)); y += CARD + GAP; });
           if (g.more) { col.appendChild(h('button', { class: 'card', type: 'button', style: 'top:' + y + 'px', onclick: function () { openList(g.all, isLeft); } }, [h('b', { text: '+' + g.more + ' more' }), h('span', { text: 'Show the full list' })])); wire(null); }
         });

@@ -220,8 +220,8 @@ Claude runs these for you; they are listed for debugging. Run them from the repo
 
 | Command | What it does |
 | --- | --- |
-| `skeleton [base]` | Starts a session and lists the changed files and changes. |
-| `build` | Merges Claude's analysis with the diff and reports mistakes in it. |
+| `skeleton [base]` | Starts a session and lists the changed files and changes. Uses the PR's own base when there is a PR (`--force-base` to override). |
+| `build` | Merges Claude's analysis with the diff and reports mistakes in it. If the page is open, it updates in place. |
 | `start` | Starts the local page and opens the browser. |
 | `wait [seconds]` / `reply <id>` | How Claude receives and answers your questions. |
 | `comments` | Fetches and prints what is on the PR. |

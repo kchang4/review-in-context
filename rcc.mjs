@@ -27,6 +27,19 @@ const SKIP = [
   [/\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|woff2?|ttf|otf|mp4|mov)$/i, 'binary file'],
 ];
 
+// Bump when annotations.json gains a requirement, so older files are flagged by build and resume.
+// 2: every file needs a "flow".  3: every non-test change needs starts/uses (or startsNone/usesNone), plus this "version" field.
+const ANNOTATION_VERSION = 3;
+// Tests and docs need no hand-traced callers. A file can also say "kind": "test" or "docs" in annotations.json.
+const LIGHT = [
+  [/(^|\/)(__tests__|__mocks__|tests?|specs?|e2e|fixtures)\//i, 'test'],
+  [/\.(test|spec)\.[cm]?[jt]sx?$/i, 'test'],
+  [/(^|\/)test_[^/]*\.py$|_test\.(py|go|rb)$/i, 'test'],
+  [/\.(md|mdx|rst|txt)$/i, 'docs'],
+  [/(^|\/)docs?\//i, 'docs'],
+];
+const lightKind = (p) => (LIGHT.find(([re]) => re.test(p)) || [])[1] || '';
+
 function run(cmd, args, input) {
   return execFileSync(cmd, args, { encoding: 'utf8', maxBuffer: 1 << 28, input, stdio: ['pipe', 'pipe', 'pipe'] });
 }
@@ -75,11 +88,16 @@ function skeleton(baseArg) {
   OUT = path.join(HOME_DIR, 'sessions', id);
   fs.mkdirSync(OUT, { recursive: true });
   const pr = detectPr();
-  const candidates = [baseArg, pr && 'origin/' + pr.baseRefName, pr && pr.baseRefName,
+  const forceBase = ARGV.includes('--force-base');
+  // A PR's own base wins over a base passed by hand: diffing a stacked PR against main pulls in the parent PR's changes.
+  const useArg = baseArg && baseArg !== '--force-base' && (!pr || forceBase);
+  const candidates = [useArg && baseArg, pr && 'origin/' + pr.baseRefName, pr && pr.baseRefName,
     attempt(() => git('symbolic-ref', '--short', 'refs/remotes/origin/HEAD').trim(), null), 'origin/main', 'origin/master', 'main', 'master'].filter(Boolean);
   const base = candidates.find((b) => attempt(() => git('rev-parse', '--verify', '--quiet', b + '^{commit}'), null));
   if (!base) die('could not find a base branch. Pass one, for example: skeleton origin/main');
   const mb = git('merge-base', base, 'HEAD').trim();
+  const baseNote = pr && baseArg && baseArg !== '--force-base' && !forceBase && baseArg.replace(/^origin\//, '') !== pr.baseRefName
+    ? 'NOTE: you passed ' + baseArg + ' but PR #' + pr.number + ' targets ' + pr.baseRefName + ', so that is the base used. Add --force-base to use ' + baseArg + ' anyway.\n' : '';
   const sha = git('rev-parse', 'HEAD').trim();
   const head = attempt(() => git('rev-parse', '--abbrev-ref', 'HEAD').trim(), 'HEAD');
   const parts = git('diff', '-M', '--name-status', '-z', mb, 'HEAD').split('\0').filter((s) => s !== '');
@@ -133,6 +151,8 @@ function skeleton(baseArg) {
   touchMeta({ id, repoPath: root, repoName: path.basename(root), branch: head, base, sha, prNumber: pr ? pr.number : null, prTitle: pr ? pr.title : '', createdAt: Date.now(), files: files.length, analysed: false });
   setPointer(root, id);
   console.log('SESSION ' + id + '  (saved under ' + OUT + ')');
+  if (baseNote) console.log(baseNote.trim());
+  if (!pr) console.log('WARNING: no PR was detected, so the base was guessed (' + base + '). If this branch is stacked on another, pass its real base. If gh failed inside a sandbox or is not signed in, fix that and run skeleton again.');
   if (earlier.length) console.log('NOTE: ' + earlier.length + ' earlier unfinished session(s) exist for this repository; the newest was last used ' + ago(earlier[0].updatedAt) + '. To pick one up instead, run: resume ' + earlier[0].id);
   console.log((pr ? 'PR #' + pr.number + ': ' + pr.title : 'No GitHub PR found for this branch (gh missing, not signed in, or no PR). Comments will be saved to a file.') + '\n' + base + ' … ' + head + ' @ ' + sha.slice(0, 7) + '\n');
   if (pr && pr.headRefOid && pr.headRefOid !== sha) console.log('WARNING: local HEAD differs from the PR head on GitHub (' + pr.headRefOid.slice(0, 7) + '). Pull or push before posting comments.\n');
@@ -151,21 +171,52 @@ function merge() {
   const an = readJSON(P('annotations.json'), {});
   const warn = [];
   const ents = an.entities || {}, afiles = an.files || {};
+  if (!(an.version >= ANNOTATION_VERSION)) warn.push('annotations.json is ' + (an.version ? 'version ' + an.version : 'missing "version"') + ', the skill now expects ' + ANNOTATION_VERSION + '. Re-read SKILL.md section 3, fix what it asks for (see the warnings below), then add "version": ' + ANNOTATION_VERSION + ' at the top level.');
+  const realLines = {};
+  const fileAt = (p) => (p in realLines ? realLines[p] : (realLines[p] = attempt(() => splitLines(git('show', sk.pr.sha + ':' + p)), null) || attempt(() => splitLines(git('show', sk.pr.mergeBase + ':' + p)), null)));
   Object.keys(afiles).forEach((p) => { if (!sk.files.some((f) => f.path === p)) warn.push('annotations name a file that is not in the diff: ' + p); });
   const files = sk.files.map((f) => {
     const a = afiles[f.path] || {};
-    if (!afiles[f.path] && !f.skipped) warn.push('no annotations for ' + f.path);
-    if (afiles[f.path] && !f.skipped && !((a.flow || []).some((s) => s.state === 'here'))) warn.push(f.path + ': no "flow" with a step marked "here". Every file needs one so the page can show "Where this code sits".');
+    const light = !f.skipped && (a.kind === 'test' || a.kind === 'docs' ? a.kind : lightKind(f.path));
+    if (!afiles[f.path] && !f.skipped && !light) warn.push('no annotations for ' + f.path);
+    if (afiles[f.path] && !f.skipped && !light && !((a.flow || []).some((s) => s.state === 'here'))) warn.push(f.path + ': no "flow" with a step marked "here". Every file needs one so the page can show "Where this code sits".');
     if (a.changes && a.changes.length !== f.changes.length) warn.push(f.path + ': annotations have ' + a.changes.length + ' changes, the diff has ' + f.changes.length);
     const changes = f.changes.map((c, k) => Object.assign({}, c, (a.changes || [])[k] || {}));
     changes.forEach((c, k) => ['starts', 'uses'].forEach((s) => (c[s] || []).forEach((id) => { if (!ents[id]) warn.push(f.path + ' change ' + (k + 1) + ': unknown entity id "' + id + '"'); })));
+    if (!f.skipped && !light) {
+      const flow = a.flow || [], here = flow.findIndex((s) => s.state === 'here');
+      const before = here > 0 ? flow.slice(0, here).filter((s) => s.state === 'changed' || s.state === 'unchanged') : [];
+      const after = here >= 0 ? flow.slice(here + 1).filter((s) => s.state === 'changed' || s.state === 'unchanged') : [];
+      changes.forEach((c, k) => {
+        const at = f.path + ' change ' + (k + 1);
+        [['starts', 'startsNone', 'What starts this code'], ['uses', 'usesNone', 'What this code uses']].forEach(([list, none, label]) => {
+          const empty = !(c[list] || []).length;
+          if (empty && !c[none]) warn.push(at + ': "' + list + '" is empty and no "' + none + '" reason is given. Trace it by reading the code, or say why there is none (e.g. "' + none + '": "' + (list === 'starts' ? 'entry point: called by the runtime' : 'plain value, depends on nothing') + '").');
+          if (!empty && c[none]) warn.push(at + ': both "' + list + '" and "' + none + '" are set. Keep one.');
+        });
+        if (!(c.starts || []).length && before.length) warn.push(at + ': "starts" is empty but the flow shows ' + before.map((s) => '"' + s.label + '"').join(', ') + ' before this file. Link the caller, or fix the flow. Write the flow from the starts/uses entities.');
+        if (!(c.uses || []).length && after.length) warn.push(at + ': "uses" is empty but the flow shows ' + after.map((s) => '"' + s.label + '"').join(', ') + ' after this file. Link what it uses, or fix the flow.');
+      });
+    }
     (a.refs || []).forEach((r) => {
       const row = f.lines.find((l) => (f.status === 'deleted' ? l.o : l.n) === r.line && (f.status === 'deleted' || l.k !== '-'));
       if (!row) warn.push(f.path + ': ref on line ' + r.line + ' but that line does not exist');
       else if (!row.t.includes(r.text)) warn.push(f.path + ' line ' + r.line + ': ref text "' + r.text + '" is not on that line');
       if (!r.types && !ents[r.id]) warn.push(f.path + ' line ' + r.line + ': ref to unknown entity id "' + r.id + '"');
     });
-    return Object.assign({}, f, { summary: a.summary || '', before: a.before || '', after: a.after || '', flow: a.flow || [], types: a.types || [], refs: a.refs || [], changes });
+    const auto = light && !afiles[f.path] ? 'Only ' + light + ' files changed here (+' + f.adds + ' -' + f.dels + '); not traced in detail.' : '';
+    return Object.assign({}, f, { light: light || undefined, summary: a.summary || auto, before: a.before || '', after: a.after || '', flow: a.flow || [], types: a.types || [], refs: a.refs || [], changes });
+  });
+  Object.entries(ents).forEach(([id, e]) => {
+    const sn = e.snippet;
+    if (!sn || !Array.isArray(sn.lines) || !sn.lines.length) return;
+    const end = (sn.start || 1) + sn.lines.length - 1;
+    if (sn.highlight != null && (sn.highlight < (sn.start || 1) || sn.highlight > end)) warn.push('entity "' + id + '": snippet highlight line ' + sn.highlight + ' is outside the snippet (lines ' + (sn.start || 1) + '-' + end + ')');
+    const m = /([\w@.\-/]+\.[A-Za-z0-9]+)/.exec(e.where || ''), real = m && fileAt(m[1]);
+    if (real) {
+      const bad = sn.lines.findIndex((t, i) => (real[(sn.start || 1) - 1 + i] || '').trim() !== String(t).trim());
+      if (bad >= 0) warn.push('entity "' + id + '": snippet line ' + ((sn.start || 1) + bad) + ' does not match ' + m[1] + ' at that line. Copy snippets from the real file with the real starting line.');
+    }
   });
   Object.values(ents).forEach((e) => { if (e.file && !sk.files.some((f) => f.path === e.file)) delete e.file; });
   const data = { pr: Object.assign({}, sk.pr, an.pr || {}), entities: ents, files };
@@ -173,10 +224,15 @@ function merge() {
   return { data, warn };
 }
 
-function build() {
+async function build() {
   const { data, warn } = merge();
   touchMeta({ analysed: true, files: data.files.length });
   console.log('Built ' + P('data.json') + ': ' + data.files.length + ' files, ' + Object.keys(data.entities).length + ' entities.');
+  const info = serverInfo();
+  if (info) {
+    const r = await api(info, 'POST', '/api/reload').catch(() => null);
+    console.log(r && r.ok ? 'The open review page was told to reload (data version ' + r.version + '). It keeps its place, ticks and draft comments.' : 'A review server is running but did not answer, so the open page may be out of date. Run: start');
+  } else console.log('No review page is running. Run: start');
   if (warn.length) { console.log('\nFix these in annotations.json, then run build again:'); warn.forEach((w) => console.log(' - ' + w)); process.exitCode = 2; }
 }
 
@@ -191,7 +247,7 @@ async function api(info, method, route, body, timeoutMs) {
 }
 
 async function start(open) {
-  if (!fs.existsSync(P('data.json'))) build();
+  if (!fs.existsSync(P('data.json'))) await build();
   let info = serverInfo();
   if (info) { await api(info, 'POST', '/api/reload'); }
   else {
@@ -338,6 +394,10 @@ function excerpt(data, a) {
 
 function serve() {
   let data = readJSON(P('data.json'), null) || die('no data.json. Run: build');
+  const mtime = () => attempt(() => fs.statSync(P('data.json')).mtimeMs, 0);
+  let dataVersion = 1, seenMtime = mtime();
+  // Re-read data.json whenever it changed on disk, so a rebuild reaches the open page even if nobody called /api/reload.
+  const syncData = (force) => { const m = mtime(); if (force || m !== seenMtime) { const d = readJSON(P('data.json'), null); if (d) { data = d; dataVersion++; } seenMtime = m; } return dataVersion; };
   const token = crypto.randomBytes(16).toString('hex');
   const state = Object.assign({ reviewed: {}, comments: [], chat: [], seq: 0, submitted: null, finished: false, paused: false }, readJSON(P('state.json'), {}));
   if (state.sha && state.sha !== data.pr.sha) { state.reviewed = {}; state.submitted = null; }
@@ -380,12 +440,13 @@ function serve() {
   }
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
+    syncData(false);
     const send = (code, obj, type) => { res.writeHead(code, { 'content-type': type || 'application/json', 'cache-control': 'no-store' }); res.end(type ? obj : JSON.stringify(obj)); };
     lastActive = Date.now();
     if (req.method === 'GET' && url.pathname === '/') {
       const tpl = fs.readFileSync(path.join(HERE, 'viewer.html'), 'utf8');
       const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/[\u2028\u2029]/g, (c) => '\\u' + c.charCodeAt(0).toString(16));
-      return send(200, tpl.replace('/*__REVIEW_DATA__*/null', () => json + ';window.RCC=' + JSON.stringify({ token })), 'text/html; charset=utf-8');
+      return send(200, tpl.replace('/*__REVIEW_DATA__*/null', () => json + ';window.RCC=' + JSON.stringify({ token, version: dataVersion })), 'text/html; charset=utf-8');
     }
     if (req.method === 'GET' && url.pathname.startsWith('/files/')) {
       const seg = url.pathname.split('/').map(decodeURIComponent);
@@ -404,7 +465,7 @@ function serve() {
       const r = url.pathname.slice(5);
       if (['reviewed', 'comment', 'ask', 'submit', 'refresh-pr', 'touch'].includes(r)) lastHuman = Date.now();
       if (r === 'touch') return send(200, { ok: true });
-      if (r === 'state') return send(200, { prComments: prc, reviewed: state.reviewed, comments: state.comments, chat: state.chat, submitted: state.submitted, finished: state.finished, paused: !!state.paused, pausedReason: state.pausedReason || '', idleMinutes: idleMin, idleLeft: idleLeft(), listening: waiters.length > 0 || Date.now() - lastWait < 30000 || state.chat.some((m) => m.role === 'user' && !m.answered && m.deliveredAt && Date.now() - m.deliveredAt < 600000), canPost: !!(data.pr.number && data.pr.repo), pr: { number: data.pr.number, url: data.pr.url } });
+      if (r === 'state') return send(200, { dataVersion, prComments: prc, reviewed: state.reviewed, comments: state.comments, chat: state.chat, submitted: state.submitted, finished: state.finished, paused: !!state.paused, pausedReason: state.pausedReason || '', idleMinutes: idleMin, idleLeft: idleLeft(), listening: waiters.length > 0 || Date.now() - lastWait < 30000 || state.chat.some((m) => m.role === 'user' && !m.answered && m.deliveredAt && Date.now() - m.deliveredAt < 600000), canPost: !!(data.pr.number && data.pr.repo), pr: { number: data.pr.number, url: data.pr.url } });
       if (r === 'reviewed') { state.reviewed[b.path] = !!b.value; persist(); return send(200, { ok: true }); }
       if (r === 'comment') {
         if (b.delete) state.comments = state.comments.filter((c) => c.id !== b.id);
@@ -418,7 +479,8 @@ function serve() {
       if (r === 'finish') { state.finished = true; state.paused = !!b.paused; state.pausedReason = ''; persist(); flush(); return send(200, { ok: true }); }
       if (r === 'refresh-pr') return void refreshPr().then(() => send(200, { ok: true }));
       if (r === 'tickets') return send(200, loadTickets());
-      if (r === 'reload') { data = readJSON(P('data.json'), data); return send(200, { ok: true }); }
+      if (r === 'reload') return send(200, { ok: true, version: syncData(true) });
+      if (r === 'data') return send(200, { version: dataVersion, data });
       if (r === 'inbox') {
         const m = pending();
         if (state.finished) { state.finished = false; persist(); return send(200, { finished: true, paused: !!state.paused, submitted: state.submitted, comments: state.comments }); }
@@ -484,7 +546,9 @@ async function resumeCmd(idArg, open) {
   const sha = root === m.repoPath ? attempt(() => git('rev-parse', 'HEAD').trim(), '') : '';
   if (sha && m.sha && sha !== m.sha) console.log('WARNING: the branch has moved since this session started (' + m.sha.slice(0, 7) + ' -> ' + sha.slice(0, 7) + '). The review still shows the old commit. Start a new session to review the new commits.');
   if (!fs.existsSync(P('annotations.json'))) return console.log('The analysis was not finished. Read ' + P('skeleton.json') + ' (or run skeleton again for a fresh session), write ' + P('annotations.json') + ', then run build and start.');
-  if (!fs.existsSync(P('data.json'))) build();
+  const av = readJSON(P('annotations.json'), {}).version || 0;
+  if (av < ANNOTATION_VERSION) console.log('WARNING: annotations.json is ' + (av ? 'version ' + av : 'unversioned') + ' but the skill now expects ' + ANNOTATION_VERSION + '. Run build to see what the newer rules ask for, fix annotations.json, and add "version": ' + ANNOTATION_VERSION + '.');
+  if (!fs.existsSync(P('data.json'))) await build();
   await start(open);
   const st = readJSON(P('state.json'), {});
   const open2 = (st.chat || []).filter((x) => x.role === 'user' && !x.answered).length;
@@ -514,8 +578,8 @@ function configCmd(sub, key, value) {
 const [cmd, ...rest] = ARGV;
 if (['build', 'start', 'serve', 'wait', 'reply', 'status', 'stop', 'comments', 'jira', 'tickets', 'history'].includes(cmd)) currentSession();
 
-if (cmd === 'skeleton') skeleton(rest[0]);
-else if (cmd === 'build') build();
+if (cmd === 'skeleton') skeleton(rest.filter((x) => x !== '--force-base')[0]);
+else if (cmd === 'build') await build();
 else if (cmd === 'start') await start(!rest.includes('--no-open'));
 else if (cmd === 'serve') serve();
 else if (cmd === 'wait') await waitCmd(rest[0]);

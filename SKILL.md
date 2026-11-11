@@ -11,6 +11,10 @@ Everything mechanical is done by `rcc.mjs`, which sits next to this file. Call i
 
 Sessions are saved outside the repository, under `~/.review-code-in-context/sessions/<id>/`, so nothing is added to the working tree and a review survives a closed terminal or a restart.
 
+## Running in a sandbox
+
+`rcc` writes under `~/.review-code-in-context/` and runs a server on localhost, and `gh` needs to reach github.com. If the harness sandboxes shell commands, these may fail (permission errors, or `gh` reporting a TLS or network error, in which case no PR is detected). Run `rcc` and `gh` with the sandbox disabled, or ask the reviewer to allow them, rather than carrying on without a PR.
+
 ## Which mode
 
 - `--resume` in the arguments: go to "Resuming".
@@ -28,7 +32,7 @@ Never ask the reviewer to paste a token or password into the chat, and never sto
 
 ## 2. Start the session
 
-Run `rcc skeleton [base]`. It works out the base, creates the session, and prints every changed file with its changes and their line ranges. Files marked "not shown" (lock files, generated files, binaries) need no analysis.
+Run `rcc skeleton`. Do not pass a base when the branch has a PR: it uses the PR's own base (so a stacked PR is not diffed against `main`). Pass one only when there is no PR, and add `--force-base` to override a PR's base. If it warns that no PR was detected, say so; the base was guessed. It works out the base, creates the session, and prints every changed file with its changes and their line ranges. Files marked "not shown" (lock files, generated files, binaries) need no analysis.
 
 If it prints a NOTE about earlier unfinished sessions, mention it in one line and carry on with the new one unless the reviewer says to resume.
 
@@ -75,7 +79,11 @@ For each shown file, and for each change in it (in the same order `skeleton` lis
 Rules:
 
 - Every snippet is copied from the real file, with its real starting line number. Never write code from memory.
-- If you looked and found no callers, use an empty list. The page then says "None found". Do not invent one.
+- Every change in a non-test, non-docs file needs `starts` and `uses`, each traced for that change by reading the code. If you looked and there really is none, leave the list empty and give the reason in `startsNone` or `usesNone` (for example `"startsNone": "entry point: called by Word"`); the page shows that reason. Do not invent a link. `rcc build` warns about an empty list with no reason.
+- A script may generate the boilerplate (file summaries, empty cards, the `version` field). It must not fill in `starts`/`uses` for you: trace them per change, including later changes in the same file, not only the first.
+- Write `flow` from your `starts`/`uses` entities so there is one source of truth: the step before "here" is what `starts` points at, the step after is what `uses` points at. `rcc build` warns when a change has no `starts` but its file's flow shows a step before it (or no `uses` but a step after).
+- Test files and docs (`*.test.*`, `*.spec.*`, `tests/`, `__tests__/`, `docs/`, `*.md`) do not need `starts`, `uses` or `flow`. `rcc build` fills a one-line summary for any of them you leave out. To mark another file this way, set `"kind": "test"` or `"kind": "docs"` on it.
+- Put `"version": 3` at the top level of `annotations.json`. `rcc build` and `rcc resume` warn when it is missing or older, because the rules above were added after earlier versions.
 - Say when something is inferred, for example a link read from infrastructure config rather than a function call.
 - Plain language. A reviewer who has never seen this code should understand each sentence.
 - Keep cards short: `name` is the thing, `sub` is a few words on how this PR relates to it.
@@ -84,6 +92,7 @@ Shape of the file:
 
 ```json
 {
+  "version": 3,
   "pr": { "title": "optional override", "summary": "one or two sentences on what the PR does" },
   "entities": {
     "someId": {
@@ -107,23 +116,24 @@ Shape of the file:
       "types": [ { "name": "JobStatus", "def": "type JobStatus = ...", "where": "src/jobs/types.ts:3", "note": "optional" } ],
       "refs": [ { "line": 27, "text": "this.set", "id": "someId" }, { "line": 8, "text": "JobKind", "types": true } ],
       "changes": [
-        { "title": "markDone()", "level": "attention", "note": "The flag or remark, if any.", "before": "...", "after": "...", "starts": ["someId"], "uses": ["otherId"] }
+        { "title": "markDone()", "level": "attention", "note": "The flag or remark, if any.", "before": "...", "after": "...", "starts": ["someId"], "uses": ["otherId"] },
+        { "title": "a constant", "before": "...", "after": "...", "starts": ["someId"], "uses": [], "usesNone": "plain value, depends on nothing" }
       ]
     }
   }
 }
 ```
 
-- `flow` is required for every file: it fills the "Where this code sits" strip at the top of the page. Give three to six steps in the order things happen at run time (what triggers this code, this file, what it hands off to), with exactly one step for this file marked `"state": "here"`. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. For a file with no run-time path (config, types, docs, tests), describe what reads or depends on it instead, for example build → this config → the Lambda that loads it. `rcc build` warns about any file without one.
+- `flow` is required for every file: it fills the "Where this code sits" strip at the top of the page. Give three to six steps in the order things happen at run time (what triggers this code, this file, what it hands off to), with exactly one step for this file marked `"state": "here"`. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. For a file with no run-time path (config or types), describe what reads or depends on it instead, for example build → this config → the Lambda that loads it. `rcc build` warns about any file without one.
 - `refs` make a name in the code clickable. `line` is the new line number (the old one for a deleted file) and `text` must appear on that line.
 - `level` is `attention`, `ok`, or left out.
 - `types` are the type definitions a reader needs for this file, copied from the code.
 
-For a large PR, annotate the files in order and run steps 4 and 5 after the first batch so the reviewer can begin; running `rcc build` and `rcc start` again later refreshes the page with the rest.
+For a large PR, annotate the files in order and run steps 4 and 5 after the first batch so the reviewer can begin; running `rcc build` again later refreshes the open page with the rest. The page notices the rebuild on its own, keeps the open file, scroll position, reviewed ticks and draft comments, and `rcc build` says whether it was notified. Do not ask the reviewer to reload.
 
 ## 4. Build
 
-Run `rcc build`. If it lists problems (an unknown id, a ref whose text is not on that line, a change count that does not match), fix `annotations.json` and build again until it is clean.
+Run `rcc build`. If it lists problems (an unknown id, a ref whose text is not on that line, a change count that does not match, a snippet that does not match the real file, a missing `starts`/`uses` reason, a flow that contradicts `starts`/`uses`), fix `annotations.json` and build again until it is clean.
 
 ## 5. Open the review
 
