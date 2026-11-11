@@ -19,6 +19,8 @@ const SESSION_ARG = takeFlag('--session');
 let OUT = '';
 const P = (n) => path.join(OUT, n);
 const MAX_ROWS = 8000;
+// Identifies this copy of the helper and page, so `start` can replace a server that is still running older code.
+const CODE_ID = crypto.createHash('sha1').update(fs.readFileSync(SELF)).update(attempt(() => fs.readFileSync(path.join(HERE, 'viewer.html')), '')).digest('hex').slice(0, 10);
 const SKIP = [
   [/(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb|Cargo\.lock|poetry\.lock|Gemfile\.lock|composer\.lock)$/, 'lock file'],
   [/\.lock\.hcl$/, 'lock file'],
@@ -38,6 +40,7 @@ const LIGHT = [
   [/\.(md|mdx|rst|txt)$/i, 'docs'],
   [/(^|\/)docs?\//i, 'docs'],
 ];
+const FLOW_LABEL_MAX = 40, FLOW_NOTE_MAX = 60;
 const lightKind = (p) => (LIGHT.find(([re]) => re.test(p)) || [])[1] || '';
 
 function run(cmd, args, input) {
@@ -183,6 +186,12 @@ function merge() {
     if (a.changes && a.changes.length !== f.changes.length) warn.push(f.path + ': annotations have ' + a.changes.length + ' changes, the diff has ' + f.changes.length);
     const changes = f.changes.map((c, k) => Object.assign({}, c, (a.changes || [])[k] || {}));
     changes.forEach((c, k) => ['starts', 'uses'].forEach((s) => (c[s] || []).forEach((id) => { if (!ents[id]) warn.push(f.path + ' change ' + (k + 1) + ': unknown entity id "' + id + '"'); })));
+    (a.flow || []).forEach((st, i) => {
+      const at = f.path + ' flow step ' + (i + 1) + ' ("' + String(st.label || '').slice(0, 20) + '")';
+      if (String(st.label || '').length > FLOW_LABEL_MAX) warn.push(at + ': label is ' + String(st.label).length + ' characters, the limit is ' + FLOW_LABEL_MAX + '. Shorten it and put the rest in "detail".');
+      if (String(st.note || '').length > FLOW_NOTE_MAX) warn.push(at + ': note is ' + String(st.note).length + ' characters, the limit is ' + FLOW_NOTE_MAX + '. Shorten it and put the rest in "detail".');
+      if ((st.state === 'external' || st.state === 'changed') && String(st.label || '').trim().split(/\s+/).length > 4 && !st.detail) warn.push(at + ': this ' + st.state + ' step has a long label and no "detail". Add a plain-language "detail" saying what it is and why it is in the story.');
+    });
     if (!f.skipped && !light) {
       const flow = a.flow || [], here = flow.findIndex((s) => s.state === 'here');
       const before = here > 0 ? flow.slice(0, here).filter((s) => s.state === 'changed' || s.state === 'unchanged') : [];
@@ -231,8 +240,10 @@ async function build() {
   const info = serverInfo();
   if (info) {
     const r = await api(info, 'POST', '/api/reload').catch(() => null);
-    console.log(r && r.ok ? 'The open review page was told to reload (data version ' + r.version + '). It keeps its place, ticks and draft comments.' : 'A review server is running but did not answer, so the open page may be out of date. Run: start');
-  } else console.log('No review page is running. Run: start');
+    if (!(r && r.ok)) console.log('A review server is running but did not answer, so the open page may be out of date. Run: start');
+    else if (info.code && info.code !== CODE_ID) console.log('The running review server is older than this skill (it will not update the page by itself). Run: start, which restarts it.');
+    else console.log(r.pageOpen ? 'page updated in place (version ' + r.version + ')' : 'no page open (server is running; a page opened now will show version ' + r.version + ')');
+  } else console.log('no page open (the review server is not running). Run: start');
   if (warn.length) { console.log('\nFix these in annotations.json, then run build again:'); warn.forEach((w) => console.log(' - ' + w)); process.exitCode = 2; }
 }
 
@@ -249,6 +260,14 @@ async function api(info, method, route, body, timeoutMs) {
 async function start(open) {
   if (!fs.existsSync(P('data.json'))) await build();
   let info = serverInfo();
+  if (info && info.code !== CODE_ID) {
+    // A server started from older code keeps serving the old page and routes. Replace it; state.json carries over.
+    await api(info, 'POST', '/api/stop').catch(() => {});
+    for (let k = 0; k < 30 && serverInfo(); k++) await new Promise((r) => setTimeout(r, 100));
+    info = serverInfo();
+    if (info) die('an older review server is still running (pid ' + info.pid + '). Stop it with: stop');
+    console.log('Restarted the review server because the skill was updated. Tabs opened before this will say the server stopped; use the new one.');
+  }
   if (info) { await api(info, 'POST', '/api/reload'); }
   else {
     attempt(() => fs.unlinkSync(P('server.json')));
@@ -367,6 +386,19 @@ async function jiraCmd(key) {
 }
 function ticketsCmd(sub, keys) {
   if (sub === 'path') { const d = ticketDir(keys[0] || die('usage: tickets path <KEY>')); fs.mkdirSync(path.join(d, 'files'), { recursive: true }); return console.log(d); }
+  if (sub === 'save') {
+    // Shorter route for trackers read through an MCP server: pipe in only what you have. Only key and summary are required.
+    //   rcc tickets save ORG-12 <<'EOF'
+    //   { "summary": "...", "description": "...", "type": "Story", "status": "Done", "parent": "ORG-10", "url": "https://...", "comments": [ { "author": "Dana", "body": "..." } ] }
+    //   EOF
+    const key = keys[0] || die('usage: tickets save <KEY>  (ticket JSON on stdin)');
+    let t; try { t = JSON.parse(fs.readFileSync(0, 'utf8')); } catch { die('tickets save: stdin is not valid JSON'); }
+    if (!t.summary) die('tickets save: "summary" is required');
+    const d = ticketDir(key); fs.mkdirSync(path.join(d, 'files'), { recursive: true });
+    writeJSON(path.join(d, 'ticket.json'), { key, type: 'Ticket', status: '', url: '', description: '', parent: null, comments: [], attachments: [], ...t, key,
+      comments: (t.comments || []).map((c) => ({ author: c.author || 'unknown', at: c.at || new Date().toISOString(), body: String(c.body || '') })), attachments: t.attachments || [] });
+    return console.log('Saved ' + path.join(d, 'ticket.json') + '. Link the chain with: tickets set <EPIC> <STORY> <TASK>');
+  }
   if (sub === 'set') touchMeta({ tickets: keys });
   const meta = readJSON(P('meta.json'), {}), list = loadTickets().tickets;
   if (!(meta.tickets || []).length) return console.log('No tickets are linked to this session.');
@@ -395,9 +427,11 @@ function excerpt(data, a) {
 function serve() {
   let data = readJSON(P('data.json'), null) || die('no data.json. Run: build');
   const mtime = () => attempt(() => fs.statSync(P('data.json')).mtimeMs, 0);
-  let dataVersion = 1, seenMtime = mtime();
+  const hashOf = () => attempt(() => crypto.createHash('sha1').update(fs.readFileSync(P('data.json'))).digest('hex').slice(0, 8), '');
+  let dataVersion = hashOf(), seenMtime = mtime(), lastPoll = 0;
   // Re-read data.json whenever it changed on disk, so a rebuild reaches the open page even if nobody called /api/reload.
-  const syncData = (force) => { const m = mtime(); if (force || m !== seenMtime) { const d = readJSON(P('data.json'), null); if (d) { data = d; dataVersion++; } seenMtime = m; } return dataVersion; };
+  // The version is a hash of the file, so an unchanged rebuild does not move the page and the number is stable.
+  const syncData = (force) => { const m = mtime(); if (force || m !== seenMtime) { seenMtime = m; const v = hashOf(), d = v && readJSON(P('data.json'), null); if (d && v !== dataVersion) { data = d; dataVersion = v; } } return dataVersion; };
   const token = crypto.randomBytes(16).toString('hex');
   const state = Object.assign({ reviewed: {}, comments: [], chat: [], seq: 0, submitted: null, finished: false, paused: false }, readJSON(P('state.json'), {}));
   if (state.sha && state.sha !== data.pr.sha) { state.reviewed = {}; state.submitted = null; }
@@ -446,7 +480,7 @@ function serve() {
     if (req.method === 'GET' && url.pathname === '/') {
       const tpl = fs.readFileSync(path.join(HERE, 'viewer.html'), 'utf8');
       const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/[\u2028\u2029]/g, (c) => '\\u' + c.charCodeAt(0).toString(16));
-      return send(200, tpl.replace('/*__REVIEW_DATA__*/null', () => json + ';window.RCC=' + JSON.stringify({ token, version: dataVersion })), 'text/html; charset=utf-8');
+      return send(200, tpl.replace('/*__REVIEW_DATA__*/null', () => json + ';window.RCC=' + JSON.stringify({ token, version: dataVersion, selected: state.selected || '' })), 'text/html; charset=utf-8');
     }
     if (req.method === 'GET' && url.pathname.startsWith('/files/')) {
       const seg = url.pathname.split('/').map(decodeURIComponent);
@@ -465,7 +499,8 @@ function serve() {
       const r = url.pathname.slice(5);
       if (['reviewed', 'comment', 'ask', 'submit', 'refresh-pr', 'touch'].includes(r)) lastHuman = Date.now();
       if (r === 'touch') return send(200, { ok: true });
-      if (r === 'state') return send(200, { dataVersion, prComments: prc, reviewed: state.reviewed, comments: state.comments, chat: state.chat, submitted: state.submitted, finished: state.finished, paused: !!state.paused, pausedReason: state.pausedReason || '', idleMinutes: idleMin, idleLeft: idleLeft(), listening: waiters.length > 0 || Date.now() - lastWait < 30000 || state.chat.some((m) => m.role === 'user' && !m.answered && m.deliveredAt && Date.now() - m.deliveredAt < 600000), canPost: !!(data.pr.number && data.pr.repo), pr: { number: data.pr.number, url: data.pr.url } });
+      if (r === 'state') lastPoll = Date.now();
+      if (r === 'state') return send(200, { dataVersion, selected: state.selected || '', prComments: prc, reviewed: state.reviewed, comments: state.comments, chat: state.chat, submitted: state.submitted, finished: state.finished, paused: !!state.paused, pausedReason: state.pausedReason || '', idleMinutes: idleMin, idleLeft: idleLeft(), listening: waiters.length > 0 || Date.now() - lastWait < 30000 || state.chat.some((m) => m.role === 'user' && !m.answered && m.deliveredAt && Date.now() - m.deliveredAt < 600000), canPost: !!(data.pr.number && data.pr.repo), pr: { number: data.pr.number, url: data.pr.url } });
       if (r === 'reviewed') { state.reviewed[b.path] = !!b.value; persist(); return send(200, { ok: true }); }
       if (r === 'comment') {
         if (b.delete) state.comments = state.comments.filter((c) => c.id !== b.id);
@@ -479,7 +514,8 @@ function serve() {
       if (r === 'finish') { state.finished = true; state.paused = !!b.paused; state.pausedReason = ''; persist(); flush(); return send(200, { ok: true }); }
       if (r === 'refresh-pr') return void refreshPr().then(() => send(200, { ok: true }));
       if (r === 'tickets') return send(200, loadTickets());
-      if (r === 'reload') return send(200, { ok: true, version: syncData(true) });
+      if (r === 'select') { if (b.path !== state.selected) { state.selected = String(b.path || ''); writeJSON(P('state.json'), state); } return send(200, { ok: true }); }
+      if (r === 'reload') return send(200, { ok: true, version: syncData(true), pageOpen: Date.now() - lastPoll < 6000 });
       if (r === 'data') return send(200, { version: dataVersion, data });
       if (r === 'inbox') {
         const m = pending();
@@ -495,7 +531,7 @@ function serve() {
       send(404, { error: 'unknown route' });
     });
   });
-  server.listen(0, '127.0.0.1', () => { writeJSON(P('server.json'), { pid: process.pid, port: server.address().port, token }); });
+  server.listen(0, '127.0.0.1', () => { writeJSON(P('server.json'), { pid: process.pid, port: server.address().port, token, code: CODE_ID }); });
   setInterval(() => { if (Date.now() - lastActive > 8 * 3600 * 1000) process.exit(0); }, 60000).unref();
   setInterval(() => { if (idleLeft() === 0) { state.finished = true; state.paused = true; state.pausedReason = 'idle'; persist(); flush(); } }, 2000).unref();
   process.on('exit', () => attempt(() => fs.unlinkSync(P('server.json'))));
@@ -593,4 +629,4 @@ else if (cmd === 'resume') await resumeCmd(rest.filter((x) => x !== '--no-open')
 else if (cmd === 'config') configCmd(rest[0], rest[1], rest.slice(2).join(' '));
 else if (cmd === 'status') { const i = serverInfo(); console.log(i ? 'running at http://127.0.0.1:' + i.port + '/' : 'not running'); }
 else if (cmd === 'stop') { const i = serverInfo(); if (i) await attempt(() => api(i, 'POST', '/api/stop'), null); console.log('stopped'); }
-else die('commands: skeleton [base] | build | start [--no-open] | wait [seconds] | reply <id> | comments | jira <KEY> | tickets [set <keys...> | path <KEY>] | sessions | resume [id] | config get|set <key> <value> | status | stop   (add --session <id> to target one session)');
+else die('commands: skeleton [base] | build | start [--no-open] | wait [seconds] | reply <id> | comments | jira <KEY> | tickets [set <keys...> | path <KEY> | save <KEY>] | sessions | resume [id] | config get|set <key> <value> | status | stop   (add --session <id> to target one session)');

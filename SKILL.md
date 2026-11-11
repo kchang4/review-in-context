@@ -49,7 +49,7 @@ The page shows the same comments on their lines and in its "On the PR" tab, and 
 **Tickets.** Find the ticket key in the branch name, PR title or PR description. You want the whole chain: the engineering task, its story, and the epic, each with its description, comments and attachments. Decisions are often made in ticket comments and never copied into the description, so read the comments.
 
 - Try `rcc jira <KEY>` first. It reads Jira directly when `JIRA_BASE_URL`, `JIRA_EMAIL` and `JIRA_API_TOKEN` are set in the shell, climbs from the task to its parents, and downloads attachments.
-- If it prints `NO_JIRA_ENV`, or the tracker is not Jira, use whatever access you have (an MCP server or a signed-in CLI). For each ticket in the chain, run `rcc tickets path <KEY>` to get its folder, write `ticket.json` there in the shape below, and save any attachments you can download into that folder's `files/` subfolder. Then run `rcc tickets set <EPIC> <STORY> <TASK>`, outermost first.
+- If it prints `NO_JIRA_ENV`, or the tracker is not Jira, use whatever access you have (an MCP server or a signed-in CLI). For each ticket, pipe what you have into `rcc tickets save <KEY>` (only `summary` is required; `description`, `type`, `status`, `url`, `parent`, `comments` with `author` and `body` are optional) instead of writing `ticket.json` by hand. If you can download attachments, put them in the folder `rcc tickets path <KEY>` prints, under `files/`, and list them in `attachments`. Then run `rcc tickets set <EPIC> <STORY> <TASK>`, outermost first. Attachments you cannot download are listed as not downloaded: say so.
 - If you cannot read the tracker at all, say so in one line and carry on without it.
 
 ```json
@@ -62,6 +62,14 @@ The page shows the same comments on their lines and in its "On the PR" tab, and 
 Tickets are stored once, in a shared folder, and every session that links a ticket reads that same copy. Never keep a private copy inside a session. Because the copy is shared it must be kept fresh: fetch the chain again at the start of every session and on every resume, even when another session already saved it, and again whenever `rcc tickets` marks a ticket STALE (older than 30 minutes) and you are about to rely on it. Fetching overwrites the shared copy, so every session sees the newer version.
 
 Then run `rcc tickets`. It prints the whole chain, when each ticket was last fetched, and the local path of every downloaded attachment. Open the images and documents with your file-reading tool and actually look at them: designs, screenshots and diagrams often show what "done" means better than the text. Say which attachments you could not open.
+
+**Enough context for "Where this code sits".** The ticket chain alone is not enough to tell the story of a change. Also read:
+
+- the epic, the story under review, and its sub-tasks or engineering tasks (Jira: `parent = <STORY>`);
+- the sibling stories and tasks under the same epic that touch the same area, with their comments (the epic lists them by key; open them, do not just read the keys);
+- the PR description, and the code comments and docs next to the changed code.
+
+Work from the PR up: the user's action in the story, then where it goes in the changed code, then what comes before and after in the wider feature. In your notes say which parts came from a ticket and which from code or docs, say when something is inferred, and say when something could not be read.
 
 Use all of this as context for "before and after" and for flags. Where the code and a ticket disagree, show the disagreement in the change's note and do not pick a side.
 
@@ -124,12 +132,13 @@ Shape of the file:
 }
 ```
 
-- `flow` is required for every file: it fills the "Where this code sits" strip at the top of the page. Give three to six steps in the order things happen at run time (what triggers this code, this file, what it hands off to), with exactly one step for this file marked `"state": "here"`. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. For a file with no run-time path (config or types), describe what reads or depends on it instead, for example build → this config → the Lambda that loads it. `rcc build` warns about any file without one.
+- `flow` is required for every file. It fills the "Where this code sits" strip and tells the story of the ticket, not just the neighbouring code. Step 1 is the user's action from the story or epic. If there is a problem this code solves (a CORS rule, a permission check, a data shape), give it its own step. Then this file, marked `"state": "here"` (exactly one step), then what happens next in the larger feature. Use 4 to 6 steps, in the order things happen. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. Example for an address-rewriting helper: "User presses Insert" > "downloadWordTemplate asks for the file" > "Problem: browser blocks S3 (CORS)" > "filesUrl.ts rewrites the address" (here) > "Dev server proxy asks S3" > "File returns, goes into Word". For a file with no run-time path (config or types), describe what reads or depends on it instead, for example build > this config > the Lambda that loads it.
+- Each flow step has a `label` (at most 40 characters) and an optional `note` (at most 60). The page shows one line per step and cuts anything longer with an ellipsis. Put longer plain-language text in an optional `detail`: the reviewer clicks the step (or presses Enter or Space on it) to open it under the strip. A `changed` or `external` step whose label is more than about 4 words needs a `detail`. `rcc build` warns about all three, naming the file and step, and about any file without a flow.
 - `refs` make a name in the code clickable. `line` is the new line number (the old one for a deleted file) and `text` must appear on that line.
 - `level` is `attention`, `ok`, or left out.
 - `types` are the type definitions a reader needs for this file, copied from the code.
 
-For a large PR, annotate the files in order and run steps 4 and 5 after the first batch so the reviewer can begin; running `rcc build` again later refreshes the open page with the rest. The page notices the rebuild on its own, keeps the open file, scroll position, reviewed ticks and draft comments, and `rcc build` says whether it was notified. Do not ask the reviewer to reload.
+For a large PR, annotate the files in order and run steps 4 and 5 after the first batch so the reviewer can begin; running `rcc build` again later refreshes the open page with the rest. The page notices the rebuild on its own and updates in place, without reloading: it keeps the open file, scroll position, open flow step and panel, reviewed ticks, draft comments and the chat, and only redraws if the open file's analysis changed. If the open file was removed it moves to the nearest remaining one. `rcc build` prints "page updated in place (version N)" or "no page open". Do not ask the reviewer to reload. If it says the running server is older than the skill, run `rcc start`: it restarts the server and opens a new tab.
 
 ## 4. Build
 

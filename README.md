@@ -225,7 +225,7 @@ Claude runs these for you; they are listed for debugging. Run them from the repo
 | `start` | Starts the local page and opens the browser. |
 | `wait [seconds]` / `reply <id>` | How Claude receives and answers your questions. |
 | `comments` | Fetches and prints what is on the PR. |
-| `jira <KEY>` / `tickets` | Fetches and prints the linked tickets. |
+| `jira <KEY>` / `tickets` | Fetches and prints the linked tickets. `tickets save <KEY>` stores one you read another way (JSON on stdin). |
 | `sessions` / `resume [id]` | Lists and reopens saved reviews. |
 | `history` | Prints the saved conversation, draft comments and reviewed files of the current session. |
 | `status` / `stop` | Shows or stops the local page. |
