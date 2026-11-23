@@ -200,7 +200,7 @@ The review page is served only on your own machine (`127.0.0.1`) and is protecte
 - **PR threads are shown flat.** Replies are not grouped, resolved threads are not marked, and you cannot reply inside an existing thread.
 - **Only the task, story and epic chain is fetched.** Sibling tickets are not. Older Jira projects that link stories to epics through the separate "Epic Link" field may not show the epic.
 - **Posting back is GitHub only.**
-- **No syntax colouring.** Files over 8,000 lines are skipped. Ticket attachments over 20 MB are not downloaded. Images pasted into GitHub comments appear as links.
+- **Very large files.** Files over 200,000 lines are skipped; anything smaller is shown, and only the lines near the screen are drawn so big files stay fast. Ticket attachments over 20 MB are not downloaded. Images pasted into GitHub comments appear as links.
 
 ## Troubleshooting
 

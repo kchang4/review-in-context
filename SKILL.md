@@ -120,7 +120,7 @@ Shape of the file:
       "summary": "One sentence on what changed in this file.",
       "before": "The file as a whole, before.",
       "after": "The file as a whole, after.",
-      "flow": [ { "label": "Lambda handler", "note": "you are here", "state": "here" } ],
+      "flow": [ { "label": "Request handler", "note": "you are here", "state": "here" } ],
       "types": [ { "name": "JobStatus", "def": "type JobStatus = ...", "where": "src/jobs/types.ts:3", "note": "optional" } ],
       "refs": [ { "line": 27, "text": "this.set", "id": "someId" }, { "line": 8, "text": "JobKind", "types": true } ],
       "changes": [
@@ -132,7 +132,7 @@ Shape of the file:
 }
 ```
 
-- `flow` is required for every file. It fills the "Where this code sits" strip and tells the story of the ticket, not just the neighbouring code. Step 1 is the user's action from the story or epic. If there is a problem this code solves (a CORS rule, a permission check, a data shape), give it its own step. Then this file, marked `"state": "here"` (exactly one step), then what happens next in the larger feature. Use 4 to 6 steps, in the order things happen. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. Example for an address-rewriting helper: "User presses Insert" > "downloadWordTemplate asks for the file" > "Problem: browser blocks S3 (CORS)" > "filesUrl.ts rewrites the address" (here) > "Dev server proxy asks S3" > "File returns, goes into Word". For a file with no run-time path (config or types), describe what reads or depends on it instead, for example build > this config > the Lambda that loads it.
+- `flow` is required for every file. It fills the "Where this code sits" strip and tells the story of the ticket, not just the neighbouring code. Step 1 is the user's action from the story or epic. If there is a problem this code solves (a cross-origin rule, a permission check, a data shape), give it its own step. Then this file, marked `"state": "here"` (exactly one step), then what happens next in the larger feature. Use 4 to 6 steps, in the order things happen. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. Example for an address-rewriting helper: "User presses Export" > "exportReport asks for the file" > "Problem: browser blocks the download (cross-origin rule)" > "fileUrl.ts rewrites the address" (here) > "Dev server proxy forwards the request" > "File returns and is saved". For a file with no run-time path (config or types), describe what reads or depends on it instead, for example build > this config > the service that loads it.
 - Each flow step has a `label` (at most 40 characters) and an optional `note` (at most 60). The page shows one line per step and cuts anything longer with an ellipsis. Put longer plain-language text in an optional `detail`: the reviewer clicks the step (or presses Enter or Space on it) to open it under the strip. A `changed` or `external` step whose label is more than about 4 words needs a `detail`. `rcc build` warns about all three, naming the file and step, and about any file without a flow.
 **The whole-PR story (preferred over a per-file `flow`).** Add three optional top-level keys. With a `story`, every file shows the same story with its own step highlighted, the map page shows it once for the whole PR, and files are listed in the order the story runs. A file that is in a story step needs no `flow`.
 
