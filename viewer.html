@@ -51,7 +51,15 @@ button.step[aria-expanded=true]{outline:2px solid var(--blue);outline-offset:1px
 .heads{position:sticky;top:0;z-index:6;background:var(--bg);padding:6px 0}
 .heads.pinned{box-shadow:0 1px 0 var(--line)}
 .col{position:relative}
-.pane{border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:var(--bg)}
+.pane{position:relative;border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:var(--bg)}
+.edge{position:absolute;left:50%;transform:translateX(-50%);z-index:4;border:0;border-radius:999px;padding:4px 14px;font:700 12px/20px system-ui,sans-serif;background:var(--strong);color:var(--on-strong);box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;white-space:nowrap}
+.edge.up{top:44px}.edge.down{bottom:10px}
+.edge.attn{background:var(--warn);color:#fff}
+.edge[hidden]{display:none}
+.rail{position:absolute;right:12px;top:36px;bottom:0;width:8px;z-index:3;pointer-events:none}
+.tick{position:absolute;left:0;width:8px;min-height:4px;border:0;padding:0;border-radius:2px;background:var(--blue);opacity:.45;pointer-events:auto;cursor:pointer}
+.tick.attn{background:var(--warn)}
+.tick.in{opacity:1}
 .pane-head{height:36px;line-height:36px;padding:0 12px;background:var(--strong);color:var(--on-strong);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .code{height:clamp(420px,calc(100vh - 150px),1100px);overflow:auto;font:13px/22px var(--mono);outline:none;tab-size:2}
 .code-inner{position:relative;min-width:100%}
@@ -1029,8 +1037,31 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     }
     var colL = h('div', { class: 'col' }), colR = h('div', { class: 'col' });
     var wires = svg('svg', { class: 'wires', 'aria-hidden': 'true' });
+    // Changes that are off screen: a small pill at the top or bottom edge of the code ("2 more changes below", click to go to the nearest),
+    // and a thin rail of ticks down the right edge showing where every change in the file sits.
+    var edgeUp = h('button', { class: 'edge up', type: 'button', hidden: true }), edgeDown = h('button', { class: 'edge down', type: 'button', hidden: true });
+    var ticks = changes.map(function (c, ci) {
+      var N = Math.max(1, lines.length);
+      return h('button', { class: 'tick' + (c.level === 'attention' ? ' attn' : ''), type: 'button', style: 'top:' + (c.startRow / N * 100) + '%;height:' + ((c.endRow - c.startRow + 1) / N * 100) + '%', title: changeName(ci), 'aria-label': 'Go to ' + changeName(ci), onclick: function () { jumpTo(ci); } });
+    });
+    var rail = changes.length > 1 ? h('div', { class: 'rail' }, ticks) : null;
+    function updateEdges() {
+      if (changes.length < 2) return;
+      var H = code.clientHeight || 600, first = Math.floor(code.scrollTop / LH), last = Math.ceil((code.scrollTop + H) / LH) - 1, above = [], below = [];
+      changes.forEach(function (c, ci) { if (c.endRow < first) above.push(ci); else if (c.startRow > last) below.push(ci); });
+      function set(btn, list, up) {
+        btn.hidden = !list.length;
+        if (!list.length) return;
+        var attn = list.some(function (ci) { return changes[ci].level === 'attention'; });
+        btn.className = 'edge ' + (up ? 'up' : 'down') + (attn ? ' attn' : '');
+        btn.textContent = (up ? '\u2191 ' : '\u2193 ') + list.length + ' more change' + (list.length === 1 ? '' : 's') + (up ? ' above' : ' below') + (attn ? ' \u00b7 needs attention' : '');
+        btn.onclick = function () { jumpTo(up ? list[list.length - 1] : list[0]); };
+      }
+      set(edgeUp, above, true); set(edgeDown, below, false);
+      ticks.forEach(function (t, ci) { var c = changes[ci]; t.classList.toggle('in', !(c.endRow < first || c.startRow > last)); });
+    }
     var shown = lines.filter(function (l) { return l.k !== '-' || deleted; }).length;
-    var pane = h('div', { class: 'pane' }, [h('div', { class: 'pane-head', text: f.path + ' · ' + (f.skipped ? 'not shown' : 'whole file, ' + shown + ' lines') }), f.skipped ? h('div', { style: 'padding:24px', text: 'This file is not shown: ' + f.skipped + '.' }) : code]);
+    var pane = h('div', { class: 'pane' }, [h('div', { class: 'pane-head', text: f.path + ' · ' + (f.skipped ? 'not shown' : 'whole file, ' + shown + ' lines') }), f.skipped ? h('div', { style: 'padding:24px', text: 'This file is not shown: ' + f.skipped + '.' }) : code, edgeUp, edgeDown, rail]);
     var stage = h('div', { class: 'stage' }, [colL, pane, colR, wires]);
     var headsEl = h('div', { class: 'heads' }, [h('div', { class: 'cap', text: deleted ? 'What still points at this file' : 'What starts this code' }), h('div'), h('div', { class: 'cap', text: deleted ? 'What this code used' : 'What this code uses' })]);
     var jumpBtns = [], baTab = null;
@@ -1039,7 +1070,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       jumpBtns.forEach(function (b, ci) { b.classList.toggle('sel', ci === sel); b.setAttribute('aria-pressed', ci === sel ? 'true' : 'false'); });
       if (baTab) baTab.textContent = 'Before / after: ' + (sel >= 0 ? 'change ' + (sel + 1) : 'whole file');
     }
-    function scrollToRow(r) { var was = code.scrollTop; code.scrollTop = Math.max(0, r * LH - code.clientHeight * 0.3); if (code.scrollTop !== was) skipScroll = true; paint(); layout(); }
+    function scrollToRow(r) { var was = code.scrollTop; code.scrollTop = Math.max(0, r * LH - code.clientHeight * 0.3); if (code.scrollTop !== was) skipScroll = true; paint(); updateEdges(); layout(); }
     function jumpTo(ci) { if (!changes[ci]) return; sel = ci; syncSel(); scrollToRow(changes[ci].startRow); }
     function cardFor(id, top, col) {
       var e = ents[id] || { name: id, sub: 'No details recorded' };
@@ -1100,12 +1131,12 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     }
     var timer = null, rz = null;
     code.addEventListener('scroll', function () {
-      paint();
+      paint(); updateEdges();
       if (skipScroll) { skipScroll = false; return; }
       if (sel !== -1) { sel = -1; syncSel(); }
       stage.classList.add('scrolling'); clearTimeout(timer); timer = setTimeout(layout, 140);
     });
-    function onResize() { clearTimeout(rz); rz = setTimeout(layout, 120); }
+    function onResize() { clearTimeout(rz); rz = setTimeout(function () { layout(); updateEdges(); }, 120); }
     window.addEventListener('resize', onResize);
     var winRaf = 0;
     function onWinScroll() {
@@ -1234,9 +1265,9 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       cleanup: function () { window.removeEventListener('resize', onResize); window.removeEventListener('scroll', onWinScroll); cancelAnimationFrame(winRaf); clearTimeout(timer); clearTimeout(rz); }
     };
     decorate();
-    paint();
+    paint(); updateEdges();
     if (!f.skipped) {
-      if (RESTORE && RESTORE.path === f.path) { sel = RESTORE.sel; syncSel(); if (code.scrollTop !== RESTORE.codeTop) skipScroll = true; code.scrollTop = RESTORE.codeTop; paint(); layout(); }
+      if (RESTORE && RESTORE.path === f.path) { sel = RESTORE.sel; syncSel(); if (code.scrollTop !== RESTORE.codeTop) skipScroll = true; code.scrollTop = RESTORE.codeTop; paint(); updateEdges(); layout(); }
       else if (wantRow >= 0 && lines[wantRow]) { targetRow = wantRow; if (mounted[wantRow]) mounted[wantRow].el.classList.add('target'); scrollToRow(wantRow); }
       else if (wantChange >= 0 && changes[wantChange]) jumpTo(wantChange);
       else if (changes.length) scrollToRow(changes[0].startRow);
