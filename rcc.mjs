@@ -18,7 +18,7 @@ function takeFlag(name) { const i = ARGV.indexOf(name); if (i < 0) return null; 
 const SESSION_ARG = takeFlag('--session');
 let OUT = '';
 const P = (n) => path.join(OUT, n);
-const MAX_ROWS = 8000;
+const MAX_ROWS = 200000; // the viewer only renders the rows near the viewport, so this just bounds the size of skeleton.json
 // Identifies this copy of the helper and page, so `start` can replace a server that is still running older code.
 const CODE_ID = crypto.createHash('sha1').update(fs.readFileSync(SELF)).update(attempt(() => fs.readFileSync(path.join(HERE, 'viewer.html')), '')).digest('hex').slice(0, 10);
 const SKIP = [
@@ -178,11 +178,37 @@ function merge() {
   const realLines = {};
   const fileAt = (p) => (p in realLines ? realLines[p] : (realLines[p] = attempt(() => splitLines(git('show', sk.pr.sha + ':' + p)), null) || attempt(() => splitLines(git('show', sk.pr.mergeBase + ':' + p)), null)));
   Object.keys(afiles).forEach((p) => { if (!sk.files.some((f) => f.path === p)) warn.push('annotations name a file that is not in the diff: ' + p); });
+  // The whole-PR story: systems (lanes), steps and handoffs between them, and a glossary of terms. All optional; without a story the page falls back to each file's own flow.
+  const systems = Array.isArray(an.systems) ? an.systems : [];
+  const story = an.story && Array.isArray(an.story.steps) && an.story.steps.length ? { steps: an.story.steps, handoffs: Array.isArray(an.story.handoffs) ? an.story.handoffs : [] } : null;
+  const glossary = an.glossary && typeof an.glossary === 'object' ? an.glossary : {};
+  const stepsOf = {};
+  if (story) {
+    const seen = new Set(), sysIds = new Set(systems.map((s) => s.id));
+    if (!systems.length) warn.push('"story" needs "systems": a list of { "id", "name" } lanes, for example Web app, API, Database.');
+    story.steps.forEach((st, i) => {
+      const at = 'story step ' + (i + 1) + (st.label ? ' ("' + String(st.label).slice(0, 20) + '")' : '');
+      if (st.id == null || st.id === '') warn.push(at + ': missing "id".'); else if (seen.has(String(st.id))) warn.push(at + ': duplicate id "' + st.id + '".'); else seen.add(String(st.id));
+      if (!st.label) warn.push(at + ': missing "label".');
+      else if (String(st.label).length > FLOW_LABEL_MAX) warn.push(at + ': label is ' + String(st.label).length + ' characters, the limit is ' + FLOW_LABEL_MAX + '.');
+      if (!sysIds.has(st.system)) warn.push(at + ': "system" is "' + st.system + '", which is not in "systems".');
+      if (!st.short) warn.push(at + ': missing "short" (the one-sentence explanation shown when the step is clicked).');
+      (st.files || []).forEach((p) => { if (!sk.files.some((f) => f.path === p)) warn.push(at + ': file is not in the diff: ' + p); else (stepsOf[p] = stepsOf[p] || []).push(String(st.id)); });
+    });
+    story.handoffs.forEach((hd, i) => {
+      const at = 'story handoff ' + (i + 1);
+      if (!seen.has(String(hd.after))) warn.push(at + ': "after" is "' + hd.after + '", which is not a step id.');
+      if (!hd.label) warn.push(at + ': missing "label".');
+    });
+    story.steps.forEach((st, i) => { const n = story.steps[i + 1]; if (n && n.system !== st.system && !story.handoffs.some((hd) => String(hd.after) === String(st.id))) warn.push('story: steps "' + st.id + '" (' + st.system + ') and "' + n.id + '" (' + n.system + ') are in different systems but have no handoff between them. Add { "after": "' + st.id + '", "label": "what carries the data across" }.'); });
+  }
+  Object.entries(glossary).forEach(([k, g]) => { if (!g || !g.short) warn.push('glossary "' + k + '": missing "short" (a one-line plain-language definition).'); });
   const files = sk.files.map((f) => {
     const a = afiles[f.path] || {};
     const light = !f.skipped && (a.kind === 'test' || a.kind === 'docs' ? a.kind : lightKind(f.path));
-    if (!afiles[f.path] && !f.skipped && !light) warn.push('no annotations for ' + f.path);
-    if (afiles[f.path] && !f.skipped && !light && !((a.flow || []).some((s) => s.state === 'here'))) warn.push(f.path + ': no "flow" with a step marked "here". Every file needs one so the page can show "Where this code sits".');
+    if (!afiles[f.path] && !f.skipped && !light && !stepsOf[f.path]) warn.push('no annotations for ' + f.path);
+    if (story && !f.skipped && !stepsOf[f.path]) warn.push(f.path + ': not in any story step. Add it to the "files" of the step it belongs to, or add a step for it.');
+    if (afiles[f.path] && !f.skipped && !light && !stepsOf[f.path] && !((a.flow || []).some((s) => s.state === 'here'))) warn.push(f.path + ': no "flow" with a step marked "here". Every file needs one so the page can show "Where this code sits".');
     if (a.changes && a.changes.length !== f.changes.length) warn.push(f.path + ': annotations have ' + a.changes.length + ' changes, the diff has ' + f.changes.length);
     const changes = f.changes.map((c, k) => Object.assign({}, c, (a.changes || [])[k] || {}));
     changes.forEach((c, k) => ['starts', 'uses'].forEach((s) => (c[s] || []).forEach((id) => { if (!ents[id]) warn.push(f.path + ' change ' + (k + 1) + ': unknown entity id "' + id + '"'); })));
@@ -214,8 +240,14 @@ function merge() {
       if (!r.types && !ents[r.id]) warn.push(f.path + ' line ' + r.line + ': ref to unknown entity id "' + r.id + '"');
     });
     const auto = light && !afiles[f.path] ? 'Only ' + light + ' files changed here (+' + f.adds + ' -' + f.dels + '); not traced in detail.' : '';
-    return Object.assign({}, f, { light: light || undefined, summary: a.summary || auto, before: a.before || '', after: a.after || '', flow: a.flow || [], types: a.types || [], refs: a.refs || [], changes });
+    return Object.assign({}, f, { light: light || undefined, summary: a.summary || auto, before: a.before || '', after: a.after || '', flow: a.flow || [], types: a.types || [], refs: a.refs || [], steps: stepsOf[f.path] || [], changes });
   });
+  // With a story, review upstream to downstream: files follow the order of the steps they belong to; unmapped files next, files that are not shown last.
+  if (story) {
+    const pos = {}; story.steps.forEach((st, i) => { pos[String(st.id)] = (st.files || []).reduce((m, p, k) => { m[p] = i + k / 1000; return m; }, {}); });
+    const key = (f) => (f.skipped ? 2e6 : f.steps.length ? Math.min.apply(null, f.steps.map((id) => (pos[id] || {})[f.path])) : 1e6);
+    files.map((f, i) => [f, i]).sort((x, y) => key(x[0]) - key(y[0]) || x[1] - y[1]).forEach(([f], i) => { files[i] = f; });
+  }
   Object.entries(ents).forEach(([id, e]) => {
     const sn = e.snippet;
     if (!sn || !Array.isArray(sn.lines) || !sn.lines.length) return;
@@ -228,7 +260,7 @@ function merge() {
     }
   });
   Object.values(ents).forEach((e) => { if (e.file && !sk.files.some((f) => f.path === e.file)) delete e.file; });
-  const data = { pr: Object.assign({}, sk.pr, an.pr || {}), entities: ents, files };
+  const data = { pr: Object.assign({}, sk.pr, an.pr || {}), entities: ents, files, systems, story, glossary };
   writeJSON(P('data.json'), data);
   return { data, warn };
 }

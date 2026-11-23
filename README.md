@@ -4,7 +4,7 @@ A Claude Code skill for reviewing a pull request in your browser, one file at a 
 
 You run one command in your terminal on a checked-out PR branch. Claude reads the diff and the surrounding repository, then opens a local page where you can:
 
-- see every added, modified and deleted file, with the changes in place in the full file;
+- see every added, modified and deleted file, with the changes in place in the full file and syntax coloured the way GitHub does it (light and dark; JavaScript/TypeScript, Python, Java/Kotlin, C-family, Go, Rust, Ruby, PHP, shell, SQL, JSON, YAML, CSS, HTML and more, with no packages to install);
 - see what calls each change and what each change uses, with lines drawn to the change;
 - read a plain-language "before and after" for each change and for each file;
 - click any line, card or flagged change and ask Claude about it, without retyping where you are;
@@ -200,7 +200,7 @@ The review page is served only on your own machine (`127.0.0.1`) and is protecte
 - **PR threads are shown flat.** Replies are not grouped, resolved threads are not marked, and you cannot reply inside an existing thread.
 - **Only the task, story and epic chain is fetched.** Sibling tickets are not. Older Jira projects that link stories to epics through the separate "Epic Link" field may not show the epic.
 - **Posting back is GitHub only.**
-- **No syntax colouring.** Files over 8,000 lines are skipped. Ticket attachments over 20 MB are not downloaded. Images pasted into GitHub comments appear as links.
+- **Very large files.** Files over 200,000 lines are skipped; anything smaller is shown, and only the lines near the screen are drawn so big files stay fast. Ticket attachments over 20 MB are not downloaded. Images pasted into GitHub comments appear as links.
 
 ## Troubleshooting
 
