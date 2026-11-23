@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Review in Context</title>
 <style>
-:root{--bg:#fff;--strong:#1B1F24;--on-strong:#fff;--link:#1F5FBF;--shade:rgba(27,31,36,.08);--scrim:rgba(27,31,36,.12);--frame:#1B1F24;--wire-g:#6E7781;--wire-b:#1F5FBF;--wire-w:#B45309;color-scheme:light;--ink:#1B1F24;--mute:#57606A;--line:#C9CED6;--edge:#8C959F;--panel:#F4F5F7;--blue:#1F5FBF;--blue-bg:#E8F0FB;--blue-ink:#174A96;--warn:#B45309;--warn-bg:#FFF4E5;--warn-ink:#8A3F06;--add:#E6FFEC;--add-edge:#1A7F37;--del:#FFEBE9;--del-edge:#CF222E;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
-:root[data-theme=dark]{--bg:#0F1318;--ink:#E6EDF3;--mute:#9DA7B3;--line:#30363D;--edge:#6E7781;--panel:#171C23;--blue:#2F6FDE;--blue-bg:#14294A;--blue-ink:#A8C7FA;--link:#79B0FF;--warn:#D9822B;--warn-bg:#3A2A12;--warn-ink:#F2BD7A;--add:#12351F;--add-edge:#3FB950;--del:#4A1D1F;--del-edge:#F85149;--strong:#3A424C;--on-strong:#fff;--shade:rgba(255,255,255,.1);--scrim:rgba(0,0,0,.45);--frame:#8C959F;--wire-g:#8C959F;--wire-b:#79B0FF;--wire-w:#E0953F;color-scheme:dark}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0F1318;--ink:#E6EDF3;--mute:#9DA7B3;--line:#30363D;--edge:#6E7781;--panel:#171C23;--blue:#2F6FDE;--blue-bg:#14294A;--blue-ink:#A8C7FA;--link:#79B0FF;--warn:#D9822B;--warn-bg:#3A2A12;--warn-ink:#F2BD7A;--add:#12351F;--add-edge:#3FB950;--del:#4A1D1F;--del-edge:#F85149;--strong:#3A424C;--on-strong:#fff;--shade:rgba(255,255,255,.1);--scrim:rgba(0,0,0,.45);--frame:#8C959F;--wire-g:#8C959F;--wire-b:#79B0FF;--wire-w:#E0953F;color-scheme:dark}}
+:root{--syn-comment:#57606a;--syn-keyword:#cf222e;--syn-entity:#8250df;--syn-constant:#0550ae;--syn-string:#0a3069;--syn-variable:#953800;--syn-tag:#116329;--bg:#fff;--strong:#1B1F24;--on-strong:#fff;--link:#1F5FBF;--shade:rgba(27,31,36,.08);--scrim:rgba(27,31,36,.12);--frame:#1B1F24;--wire-g:#6E7781;--wire-b:#1F5FBF;--wire-w:#B45309;color-scheme:light;--ink:#1B1F24;--mute:#57606A;--line:#C9CED6;--edge:#8C959F;--panel:#F4F5F7;--blue:#1F5FBF;--blue-bg:#E8F0FB;--blue-ink:#174A96;--warn:#B45309;--warn-bg:#FFF4E5;--warn-ink:#8A3F06;--add:#E6FFEC;--add-edge:#1A7F37;--del:#FFEBE9;--del-edge:#CF222E;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+:root[data-theme=dark]{--syn-comment:#8b949e;--syn-keyword:#ff7b72;--syn-entity:#d2a8ff;--syn-constant:#79c0ff;--syn-string:#a5d6ff;--syn-variable:#ffa657;--syn-tag:#7ee787;--bg:#0F1318;--ink:#E6EDF3;--mute:#9DA7B3;--line:#30363D;--edge:#6E7781;--panel:#171C23;--blue:#2F6FDE;--blue-bg:#14294A;--blue-ink:#A8C7FA;--link:#79B0FF;--warn:#D9822B;--warn-bg:#3A2A12;--warn-ink:#F2BD7A;--add:#12351F;--add-edge:#3FB950;--del:#4A1D1F;--del-edge:#F85149;--strong:#3A424C;--on-strong:#fff;--shade:rgba(255,255,255,.1);--scrim:rgba(0,0,0,.45);--frame:#8C959F;--wire-g:#8C959F;--wire-b:#79B0FF;--wire-w:#E0953F;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--syn-comment:#8b949e;--syn-keyword:#ff7b72;--syn-entity:#d2a8ff;--syn-constant:#79c0ff;--syn-string:#a5d6ff;--syn-variable:#ffa657;--syn-tag:#7ee787;--bg:#0F1318;--ink:#E6EDF3;--mute:#9DA7B3;--line:#30363D;--edge:#6E7781;--panel:#171C23;--blue:#2F6FDE;--blue-bg:#14294A;--blue-ink:#A8C7FA;--link:#79B0FF;--warn:#D9822B;--warn-bg:#3A2A12;--warn-ink:#F2BD7A;--add:#12351F;--add-edge:#3FB950;--del:#4A1D1F;--del-edge:#F85149;--strong:#3A424C;--on-strong:#fff;--shade:rgba(255,255,255,.1);--scrim:rgba(0,0,0,.45);--frame:#8C959F;--wire-g:#8C959F;--wire-b:#79B0FF;--wire-w:#E0953F;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/22px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:var(--link)}
@@ -51,7 +51,8 @@ button.step[aria-expanded=true]{outline:2px solid var(--blue);outline-offset:1px
 .pane{border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:var(--bg)}
 .pane-head{height:36px;line-height:36px;padding:0 12px;background:var(--strong);color:var(--on-strong);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .code{height:clamp(420px,calc(100vh - 150px),1100px);overflow:auto;font:13px/22px var(--mono);outline:none;tab-size:2}
-.code-inner{display:inline-block;min-width:100%}
+.code-inner{position:relative;min-width:100%}
+.code-win{position:absolute;left:0;right:0;top:0}
 .row{display:flex;height:22px;white-space:pre;padding-right:16px;color:var(--mute)}
 .row.add{background:var(--add);color:var(--ink)}
 .row.del{background:var(--del);color:var(--ink)}
@@ -62,6 +63,9 @@ button.step[aria-expanded=true]{outline:2px solid var(--blue);outline-offset:1px
 .num{flex:none;width:52px;text-align:right;padding:0 10px 0 0;border:0;background:none;font:inherit;color:var(--mute);cursor:pointer}
 .num:hover,.num:focus-visible{color:var(--ink);text-decoration:underline}
 .sign{flex:none;width:18px;user-select:none;font-weight:700}
+.tc{color:var(--syn-comment)}.tk{color:var(--syn-keyword)}.te{color:var(--syn-entity)}.tn{color:var(--syn-constant)}.ts{color:var(--syn-string)}.tv{color:var(--syn-variable)}.tt{color:var(--syn-tag)}
+.code-inner.hl .row{color:var(--ink)}
+.ref .tc,.ref .tk,.ref .te,.ref .tn,.ref .ts,.ref .tv,.ref .tt{color:inherit}
 .ref{border:0;background:none;padding:0;font:inherit;color:var(--blue-ink);text-decoration:underline;cursor:pointer}
 .mark{margin-left:16px;align-self:center;height:18px;line-height:16px;padding:0 8px;border-radius:999px;border:1px solid var(--strong);background:var(--strong);color:var(--on-strong);font:700 11px/16px system-ui,sans-serif;cursor:pointer}
 .mark:empty{display:none}
@@ -138,6 +142,44 @@ th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
 td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.story{display:flex;flex-direction:column;gap:10px}
+.lanes{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.lane{display:flex;border-bottom:1px solid var(--line)}
+.lane:last-child{border-bottom:0}
+.lab{width:124px;flex:none;padding:10px;color:#fff;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.lab b{font-size:13px;letter-spacing:.05em;font-weight:800}
+.lab span{font-size:11px;opacity:.92}
+.lsteps{padding:10px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.sstep{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--lc);border-radius:8px;background:color-mix(in srgb,var(--lc) 12%,var(--bg));color:var(--ink);font-size:13px;cursor:pointer;text-align:left}
+.sstep.ext{border-style:dashed;background:var(--bg)}
+.sstep.here{background:var(--strong);border-color:var(--strong);color:var(--on-strong)}
+.sstep.sel{outline:3px solid var(--ink);outline-offset:1px}
+.snum{flex:none;width:22px;height:22px;border-radius:50%;background:var(--lc);color:#fff;font-weight:800;font-size:12px;display:inline-flex;align-items:center;justify-content:center}
+.sstep.here .snum{background:#fff;color:#1B1F24}
+.schg{font-size:11px;opacity:.8}
+.shand{display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;padding:8px 12px 8px 136px;background:var(--panel);border:0;border-bottom:1px solid var(--line);color:var(--ink);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.shand.sel{outline:3px solid var(--ink);outline-offset:-3px}
+.pill{background:var(--strong);color:var(--on-strong);font-weight:700;font-size:11px;letter-spacing:.04em;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.shand small{font-size:12.5px;color:var(--mute)}
+.arrow{color:var(--mute)}
+.lanes.compact .lsteps{padding:6px 10px}
+.lanes.compact .lab{padding:6px 10px}
+.lanes.compact .shand{padding-top:4px;padding-bottom:4px}
+.sdetail{padding:14px 16px;border:1px solid var(--line);border-left:6px solid var(--lc);border-radius:10px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+.sdetail h3{margin:0;font-size:17px;line-height:24px}
+.srow{display:flex;gap:10px}
+.srow>b{flex:none;width:96px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);padding-top:2px}
+.srow>div{min-width:0}
+.sfiles{display:flex;flex-wrap:wrap;gap:6px 14px}
+.sfiles .cur{font-weight:700}
+.term{border:0;background:none;padding:0;font:inherit;color:var(--blue-ink);border-bottom:2px dotted var(--blue);cursor:pointer;font-weight:600}
+.term:hover,.term:focus-visible{background:var(--blue-bg)}
+.termpop{position:fixed;z-index:25;width:380px;max-width:94vw;background:var(--bg);color:var(--ink);border:2px solid var(--blue);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.28);overflow:hidden;font-size:14px;line-height:21px}
+.tp-h{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--blue);color:#fff}
+.tp-h span{font-size:11px;opacity:.95;margin-left:auto}
+.tp-x{border:0;background:none;color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+.tp-b{padding:12px}
+@media (max-width:1000px){.lab{width:96px}.shand{padding-left:108px}}
 @media (max-width:1000px){.heads,.stage{grid-template-columns:150px minmax(0,1fr) 150px;column-gap:28px}.wrap{padding:16px 16px 48px}}
 </style>
 </head>
@@ -155,6 +197,8 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
   var S = { selected: (window.RCC && window.RCC.selected) || '', reviewed: {}, comments: [], chat: [], submitted: null, listening: false, canPost: false, pr: {}, prComments: null };
   var TICKETS = [], dataVersion = LIVE && LIVE.version, reloading = false;
   var curPath = '', RESTORE = null, lastOpen = null, needRedraw = null, openStepKey = null;
+  var STORY = R.story || null, SYSTEMS = R.systems || [], GLOSS = R.glossary || {}, termRe = null, termMap = {}, storySel = null, termPop = null;
+  var LANE_COLORS = ['#4b5563', '#0e7490', '#7c3aed', '#b45309', '#be185d', '#15803d'];
   var view = null, openRefresh = null, summaryDraft = '', verdict = 'COMMENT', offline = false, paused = false, pausedReason = '', active = false, idleShown = false, pausedShown = false;
 
   function h(tag, attrs, kids) {
@@ -178,7 +222,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
   function inline(parent, s) {
     var re = /(`+)([\s\S]+?)\1|\*\*([^\n]+?)\*\*|__([^\n]+?)__|\*([^\s*][^\n*]*?)\*|\b_([^\s_][^\n_]*?)_\b|\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>)\]]+)/g, last = 0, m;
     while ((m = re.exec(s))) {
-      if (m.index > last) parent.appendChild(document.createTextNode(s.slice(last, m.index)));
+      if (m.index > last) plain(parent, s.slice(last, m.index));
       if (m[2] != null) parent.appendChild(h('code', { text: m[2] }));
       else if (m[3] != null || m[4] != null) inline(parent.appendChild(h('strong')), m[3] != null ? m[3] : m[4]);
       else if (m[5] != null || m[6] != null) inline(parent.appendChild(h('em')), m[5] != null ? m[5] : m[6]);
@@ -186,9 +230,60 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       else parent.appendChild(h('a', { href: m[9], target: '_blank', rel: 'noopener', text: m[9] }));
       last = re.lastIndex;
     }
-    if (last < s.length) parent.appendChild(document.createTextNode(s.slice(last)));
+    if (last < s.length) plain(parent, s.slice(last));
     return parent;
   }
+  // Plain text with every glossary term turned into a click-for-definition button.
+  function buildTermRe() {
+    var names = [];
+    termMap = {};
+    Object.keys(GLOSS).forEach(function (k) { [GLOSS[k].term || k].concat(GLOSS[k].aliases || []).forEach(function (n) { if (n) { names.push(String(n)); termMap[String(n).toLowerCase()] = k; } }); });
+    names.sort(function (a, b) { return b.length - a.length; });
+    termRe = names.length ? new RegExp('(^|[^\\w$-])(' + names.map(function (n) { return n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')(?![\\w$-])', 'gi') : null;
+  }
+  function plain(parent, s) {
+    if (!s) return;
+    if (!termRe) { parent.appendChild(document.createTextNode(s)); return; }
+    termRe.lastIndex = 0;
+    var last = 0, m;
+    while ((m = termRe.exec(s))) {
+      var a = m.index + m[1].length, key = termMap[m[2].toLowerCase()];
+      if (a > last) parent.appendChild(document.createTextNode(s.slice(last, a)));
+      parent.appendChild(h('button', { class: 'term', type: 'button', text: m[2], title: 'What is this?', onclick: (function (k) { return function (e) { e.stopPropagation(); openTerm(k, e.currentTarget); }; })(key) }));
+      last = a + m[2].length;
+    }
+    if (last < s.length) parent.appendChild(document.createTextNode(s.slice(last)));
+  }
+  function closeTerm() { if (termPop) { termPop.remove(); termPop = null; } }
+  function openTerm(key, el) {
+    closeTerm();
+    var g = GLOSS[key]; if (!g) return;
+    var r = el.getBoundingClientRect(), n = Object.keys(GLOSS).length;
+    termPop = h('div', { class: 'termpop', role: 'dialog', 'aria-label': g.term || key }, [
+      h('div', { class: 'tp-h' }, [h('b', { text: g.term || key }), g.kind ? h('span', { text: g.kind }) : null, h('button', { class: 'tp-x', type: 'button', 'aria-label': 'Close', text: '×', onclick: closeTerm })]),
+      h('div', { class: 'tp-b' }, [
+        h('div', null, [h('b', { text: 'In short: ' }), inline(h('span'), g.short)]),
+        g.detail ? h('div', { style: 'margin-top:8px' }, [h('b', { text: 'In this PR: ' }), inline(h('span'), g.detail)]) : null,
+        n > 1 ? h('div', { class: 'rowx', style: 'margin-top:10px' }, [h('button', { class: 'btn small', type: 'button', text: 'All terms (' + n + ')', onclick: function () { closeTerm(); openTerms(); } })]) : null
+      ])
+    ]);
+    document.body.appendChild(termPop);
+    var pw = termPop.offsetWidth, ph = termPop.offsetHeight, top = r.bottom + 8;
+    if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 8);
+    termPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + 'px'; termPop.style.top = top + 'px';
+  }
+  function openTerms() {
+    var kids = [h('h2', { text: 'Terms in this review' })];
+    Object.keys(GLOSS).sort(function (a, b) { return (GLOSS[a].term || a).toLowerCase() < (GLOSS[b].term || b).toLowerCase() ? -1 : 1; }).forEach(function (k) {
+      var g = GLOSS[k];
+      kids.push(h('div', { class: 'msg' }, [h('div', null, [h('b', { text: g.term || k }), g.kind ? h('span', { class: 'sub', text: ' · ' + g.kind }) : null]), inline(h('div'), g.short), g.detail ? inline(h('div', { class: 'sub' }), g.detail) : null]));
+    });
+    drawer('left', kids);
+  }
+  document.addEventListener('click', function (e) { if (termPop && !termPop.contains(e.target)) closeTerm(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeTerm(); });
+  buildTermRe();
+
   function rich(text) {
     var out = h('div', { class: 'txt md' }), lines = String(text == null ? '' : text).replace(/\r/g, '').split('\n'), i = 0, m;
     var isList = function (l) { return /^\s*([-*+]|\d+[.)])\s+/.exec(l); };
@@ -232,6 +327,146 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       inline(out.appendChild(h('p')), para.join('\n'));
     }
     return out;
+  }
+
+  // Syntax highlighting in GitHub's colours (Primer "prettylights"). No dependencies: one small scanner per language family.
+  // Token classes: tc comment, tk keyword, te entity (names being defined), tn constant (numbers, literals, keys), ts string, tv variable, tt tag.
+  function KW(s) { var o = {}; s.split(' ').forEach(function (w) { o[w] = 1; }); return o; }
+  var LIT = KW('true false null undefined NaN Infinity this super self cls nil None True False iota');
+  var L = {
+    js: { kw: KW('break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new of return switch throw try typeof var void while with yield async await static get set from as implements interface type enum namespace declare abstract readonly public private protected module keyof is'), def: KW('function class interface type enum namespace'), line: ['//'], block: ['/*', '*/'], q: '"\'`', tpl: 1, at: 1 },
+    jvm: { kw: KW('abstract assert boolean break byte case catch char class const continue default do double else enum extends final finally float for goto if implements import instanceof int interface long native new package private protected public return short static strictfp switch synchronized throw throws transient try void volatile while var val fun when object companion data sealed override open internal lateinit by in is as typealias suspend trait lazy'), def: KW('class interface enum object fun trait'), line: ['//'], block: ['/*', '*/'], q: '"\'', at: 1 },
+    c: { kw: KW('auto break case catch char class const constexpr continue default delete do double else enum explicit extern float for friend goto if inline int long mutable namespace new operator private protected public register return short signed sizeof static struct switch template this throw try typedef typename union unsigned using virtual void volatile while bool string var async await foreach in is as override readonly sealed abstract interface base lock out ref params get set'), def: KW('class struct enum namespace interface'), line: ['//'], block: ['/*', '*/'], q: '"\'', pre: 1 },
+    go: { kw: KW('break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var'), def: KW('func type'), line: ['//'], block: ['/*', '*/'], q: '"`', tpl: 1 },
+    rs: { kw: KW('as async await break const continue crate dyn else enum extern fn for if impl in let loop match mod move mut pub ref return static struct super trait type unsafe use where while'), def: KW('fn struct enum trait mod type'), line: ['//'], block: ['/*', '*/'], q: '"' },
+    swift: { kw: KW('as break case catch class continue default defer do else enum extension fallthrough for func guard if import in init inout let operator private protocol public repeat return static struct subscript switch throw throws try typealias var where while async await'), def: KW('func class struct enum protocol'), line: ['//'], block: ['/*', '*/'], q: '"' },
+    php: { kw: KW('abstract and array as break case catch class clone const continue declare default do echo else elseif empty enddeclare endfor endforeach endif endswitch endwhile extends final finally fn for foreach function global if implements include include_once instanceof interface isset list namespace new or print private protected public require require_once return static switch throw trait try unset use var while xor yield'), def: KW('function class interface trait'), line: ['//', '#'], block: ['/*', '*/'], q: '"\'', dollar: 1 },
+    py: { kw: KW('and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case'), def: KW('def class'), line: ['#'], q: '"\'', tri: 1, at: 1 },
+    rb: { kw: KW('alias and begin break case class def defined do else elsif end ensure for if in module next not or redo rescue retry return then undef unless until when while yield require require_relative include extend attr_accessor attr_reader attr_writer private public protected'), def: KW('def class module'), line: ['#'], q: '"\'' },
+    sh: { kw: KW('if then else elif fi case esac for select while until do done in function time export local readonly declare unset return exit source alias set shift trap'), line: ['#'], q: '"\'', dollar: 1 },
+    yaml: { kw: {}, line: ['#'], q: '"\'', yamlKey: 1 },
+    toml: { kw: {}, line: ['#'], q: '"\'', tri: 1, yamlKey: 1 },
+    hcl: { kw: KW('resource variable output module provider data locals terraform for in if'), line: ['#', '//'], block: ['/*', '*/'], q: '"' },
+    sql: { kw: KW('select from where and or not in is null as join left right inner outer full cross on group by order having limit offset insert into values update set delete create alter drop table index view database schema primary key foreign references unique default constraint distinct union all case when then else end exists between like ilike asc desc with returning begin commit rollback cascade add column if'), line: ['--'], block: ['/*', '*/'], q: '"\'', ci: 1 },
+    json: { kw: {}, q: '"', jsonKey: 1 },
+    css: { kw: {}, line: [], block: ['/*', '*/'], q: '"\'', css: 1, dash: 1 },
+    scss: { kw: {}, line: ['//'], block: ['/*', '*/'], q: '"\'', css: 1, dash: 1 }
+  };
+  var EXT = { js: 'js', jsx: 'js', mjs: 'js', cjs: 'js', ts: 'js', tsx: 'js', mts: 'js', cts: 'js', java: 'jvm', kt: 'jvm', kts: 'jvm', scala: 'jvm', groovy: 'jvm', c: 'c', h: 'c', cpp: 'c', cc: 'c', cxx: 'c', hpp: 'c', cs: 'c', m: 'c', go: 'go', rs: 'rs', swift: 'swift', php: 'php', py: 'py', rb: 'rb', sh: 'sh', bash: 'sh', zsh: 'sh', yml: 'yaml', yaml: 'yaml', toml: 'toml', ini: 'toml', tf: 'hcl', hcl: 'hcl', sql: 'sql', json: 'json', jsonc: 'json', css: 'css', scss: 'scss', less: 'scss', html: 'markup', htm: 'markup', xml: 'markup', svg: 'markup', vue: 'markup', svelte: 'markup', xhtml: 'markup' };
+  function langOf(path) { var m = /\.([A-Za-z0-9]+)$/.exec(String(path || '')); var k = m && EXT[m[1].toLowerCase()]; return k || (/(^|\/)(Dockerfile|Makefile)$/.test(path || '') ? 'sh' : ''); }
+
+  function scanMarkup(texts) {
+    var st = null, inTag = false;
+    return texts.map(function (t) {
+      var toks = [], i = 0, n = t.length, m;
+      function push(a, b, c) { if (b > a) toks.push([a, b, c]); }
+      while (i < n) {
+        if (st) { var e = t.indexOf('-->', i); if (e < 0) { push(i, n, 'tc'); i = n; } else { push(i, e + 3, 'tc'); i = e + 3; st = null; } continue; }
+        if (inTag) {
+          var ch = t[i];
+          if (ch === '>' || (ch === '/' && t[i + 1] === '>')) { inTag = false; i += ch === '/' ? 2 : 1; continue; }
+          if (ch === '"' || ch === "'") { var j = t.indexOf(ch, i + 1); j = j < 0 ? n : j + 1; push(i, j, 'ts'); i = j; continue; }
+          if ((m = /^[^\s=<>\/"']+/.exec(t.slice(i)))) { push(i, i + m[0].length, 'tn'); i += m[0].length; continue; }
+          i++; continue;
+        }
+        var lt = t.indexOf('<', i);
+        if (lt < 0) break;
+        if (t.startsWith('<!--', lt)) { st = true; i = lt; var e2 = t.indexOf('-->', lt + 4); if (e2 < 0) { push(lt, n, 'tc'); i = n; } else { push(lt, e2 + 3, 'tc'); i = e2 + 3; st = null; } continue; }
+        if ((m = /^<\/?([A-Za-z][\w:.-]*)/.exec(t.slice(lt)))) { push(lt + m[0].length - m[1].length, lt + m[0].length, 'tt'); i = lt + m[0].length; inTag = true; continue; }
+        if ((m = /^<[!?][^>]*>?/.exec(t.slice(lt)))) { push(lt, lt + m[0].length, 'tk'); i = lt + m[0].length; continue; }
+        i = lt + 1;
+      }
+      return toks;
+    });
+  }
+
+  function scanLines(cfg, texts) {
+    var st = null, ID = /[A-Za-z_$][\w$]*/y, IDD = /[A-Za-z_$-][\w$-]*/y;
+    return texts.map(function (t) {
+      var toks = [], i = 0, n = t.length, afterDef = false, m, e;
+      function push(a, b, c) { if (b > a) toks.push([a, b, c]); }
+      if (st) {
+        e = t.indexOf(st.end);
+        if (e < 0) { push(0, n, st.cls); return toks; }
+        i = e + st.end.length; push(0, i, st.cls); st = null;
+      }
+      if (cfg.yamlKey && (m = /^(\s*(?:-\s+)?)([^\s#:'"\[{][^:#]*?)(\s*[:=])(\s|$)/.exec(t))) { push(m[1].length, m[1].length + m[2].length, 'tt'); i = m[1].length + m[2].length; }
+      if (cfg.pre && (m = /^\s*#\s*\w+/.exec(t))) { push(m[0].indexOf('#'), m[0].length, 'tk'); i = m[0].length; }
+      while (i < n) {
+        var c = t[i], k, p;
+        if (cfg.line) { k = false; for (p = 0; p < cfg.line.length; p++) if (t.startsWith(cfg.line[p], i)) { push(i, n, 'tc'); i = n; k = true; break; } if (k) break; }
+        if (cfg.block && t.startsWith(cfg.block[0], i)) { e = t.indexOf(cfg.block[1], i + cfg.block[0].length); if (e < 0) { push(i, n, 'tc'); st = { end: cfg.block[1], cls: 'tc' }; i = n; } else { push(i, e + cfg.block[1].length, 'tc'); i = e + cfg.block[1].length; } continue; }
+        if (cfg.tri && (t.startsWith('"""', i) || t.startsWith("'''", i))) { var d = t.substr(i, 3); e = t.indexOf(d, i + 3); if (e < 0) { push(i, n, 'ts'); st = { end: d, cls: 'ts' }; i = n; } else { push(i, e + 3, 'ts'); i = e + 3; } continue; }
+        if (cfg.q && cfg.q.indexOf(c) >= 0) {
+          var j = i + 1;
+          while (j < n && t[j] !== c) { if (t[j] === '\\') j++; j++; }
+          if (j >= n && c === '`' && cfg.tpl) { push(i, n, 'ts'); st = { end: '`', cls: 'ts' }; i = n; continue; }
+          j = Math.min(j + 1, n);
+          var cls = 'ts';
+          if (cfg.jsonKey && /^\s*:/.test(t.slice(j))) cls = 'tn';
+          push(i, j, cls); i = j; afterDef = false; continue;
+        }
+        if (cfg.css && c === '@' && (m = /^@[\w-]+/.exec(t.slice(i)))) { push(i, i + m[0].length, 'tk'); i += m[0].length; continue; }
+        if (cfg.css && c === '#' && (m = /^#[\da-fA-F]{3,8}\b/.exec(t.slice(i)))) { push(i, i + m[0].length, 'tn'); i += m[0].length; continue; }
+        if (cfg.css && (c === '.' || c === '#') && (m = /^[.#][A-Za-z_-][\w-]*/.exec(t.slice(i))) && !/^\s*[;}]/.test(t.slice(i + m[0].length))) { push(i, i + m[0].length, 'tt'); i += m[0].length; continue; }
+        if (cfg.dollar && c === '$' && (m = /^\$(\{[^}]*\}|\w+)/.exec(t.slice(i)))) { push(i, i + m[0].length, 'tv'); i += m[0].length; continue; }
+        if (cfg.at && c === '@' && (m = /^@[A-Za-z_][\w.]*/.exec(t.slice(i)))) { push(i, i + m[0].length, 'te'); i += m[0].length; continue; }
+        if (/\d/.test(c) && (i === 0 || !/[\w$]/.test(t[i - 1])) && (m = /^(0[xX][\da-fA-F_]+|0[bB][01_]+|\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?[A-Za-z%]*)/.exec(t.slice(i)))) { push(i, i + m[0].length, 'tn'); i += m[0].length; continue; }
+        var re = cfg.dash ? IDD : ID; re.lastIndex = i;
+        if (/[A-Za-z_$-]/.test(c) && (m = re.exec(t)) && m.index === i) {
+          var w = m[0], key = cfg.ci ? w.toLowerCase() : w, after = i + w.length;
+          if (cfg.css && /^\s*:(?!:)/.test(t.slice(after)) && /^[a-z-]+$/.test(w) && w !== '-') push(i, after, 'tn');
+          else if (cfg.kw[key]) { push(i, after, 'tk'); afterDef = !!(cfg.def && cfg.def[key]); i = after; continue; }
+          else if (afterDef) { push(i, after, 'te'); afterDef = false; }
+          else if (LIT[w] && !cfg.css) push(i, after, 'tn');
+          else if (/^[A-Z][A-Z0-9_]{2,}$/.test(w) && !cfg.css) push(i, after, 'tn');
+          i = after; continue;
+        }
+        if (c !== ' ' && c !== '\t') afterDef = false;
+        i++;
+      }
+      return toks;
+    });
+  }
+
+  // Tokens for every row of a file. Rows are scanned as two streams (the new file, and the old file for removed lines) so that
+  // multi-line comments and strings carry over correctly even though removed and added lines are interleaved.
+  function tokensFor(f) {
+    if (f._toks !== undefined) return f._toks;
+    var lang = langOf(f.path), rows = f.lines || [], out = null;
+    if (lang && !f.skipped) {
+      var mk = lang === 'markup' ? scanMarkup : function (x) { return scanLines(L[lang], x); };
+      var newIdx = [], oldIdx = [];
+      rows.forEach(function (r, i) { if (r.k !== '-') newIdx.push(i); if (r.k !== '+') oldIdx.push(i); });
+      out = new Array(rows.length);
+      var a = mk(newIdx.map(function (i) { return rows[i].t; })); newIdx.forEach(function (ri, k) { out[ri] = a[k]; });
+      if (oldIdx.length !== newIdx.length || rows.some(function (r) { return r.k === '-'; })) {
+        var b = mk(oldIdx.map(function (i) { return rows[i].t; })); oldIdx.forEach(function (ri, k) { if (rows[ri].k === '-') out[ri] = b[k]; });
+      }
+    }
+    return (f._toks = out);
+  }
+  // Text of one line as DOM nodes: coloured spans for tokens, and a button for each reviewer-clickable name (refs: [{text, onclick}]).
+  function lineKids(t, toks, refs) {
+    var n = t.length, ranges = [], pos = 0, cuts = [0, n], kids = [];
+    (refs || []).forEach(function (r) { var at = t.indexOf(r.text, pos); if (at < 0) return; ranges.push({ a: at, b: at + r.text.length, r: r }); pos = at + r.text.length; });
+    (toks || []).forEach(function (k) { cuts.push(k[0], k[1]); });
+    ranges.forEach(function (r) { cuts.push(r.a, r.b); });
+    cuts = cuts.filter(function (x, i, arr) { return x >= 0 && x <= n && arr.indexOf(x) === i; }).sort(function (x, y) { return x - y; });
+    var ti = 0, btn = null, btnRange = null;
+    for (var i = 0; i + 1 < cuts.length; i++) {
+      var a = cuts[i], b = cuts[i + 1], tok = null, rg = null, j;
+      while (toks && ti < toks.length && toks[ti][1] <= a) ti++;
+      if (toks && ti < toks.length && toks[ti][0] <= a && toks[ti][1] >= b) tok = toks[ti];
+      for (j = 0; j < ranges.length; j++) if (ranges[j].a <= a && ranges[j].b >= b) rg = ranges[j];
+      var piece = tok ? h('span', { class: tok[2], text: t.slice(a, b) }) : document.createTextNode(t.slice(a, b));
+      if (rg) {
+        if (btnRange !== rg) { btnRange = rg; btn = h('button', { class: 'ref', type: 'button', onclick: rg.r.onclick }); kids.push(btn); }
+        btn.appendChild(piece);
+      } else { btnRange = null; kids.push(piece); }
+    }
+    if (!kids.length) kids.push(' ');
+    return kids;
   }
 
   function ago(t) { var ms = typeof t === 'number' ? t : Date.parse(t); if (!ms) return ''; var s = Math.max(0, Math.round((Date.now() - ms) / 1000)); if (s < 60) return 'just now'; var m = Math.round(s / 60); if (m < 60) return m + ' min ago'; var hh = Math.round(m / 60); if (hh < 48) return hh + ' h ago'; return Math.round(hh / 24) + ' days ago'; }
@@ -345,12 +580,13 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     reloading = true;
     return api('data').then(function (r) {
       var oldFiles = files, oldIdx = fileIndex(curPath), onMap = location.hash === '#/map';
-      var oldSig = oldIdx >= 0 ? sigOf(oldFiles[oldIdx]) : '', oldAll = JSON.stringify(oldFiles);
+      var oldSig = oldIdx >= 0 ? sigOf(oldFiles[oldIdx]) : '', oldAll = JSON.stringify(oldFiles), oldStory = JSON.stringify([STORY, SYSTEMS, GLOSS]);
       files = r.data.files; ents = r.data.entities || {}; pr = r.data.pr || {}; dataVersion = r.version;
+      STORY = r.data.story || null; SYSTEMS = r.data.systems || []; GLOSS = r.data.glossary || {}; buildTermRe();
       loadTickets();
       var idx = fileIndex(curPath), gone = !onMap && idx < 0;
       if (gone) idx = nearest(oldFiles, oldIdx);
-      var unchanged = pathsOf(oldFiles) === pathsOf(files) && (onMap ? oldAll === JSON.stringify(files) : idx >= 0 && oldSig === sigOf(files[idx]));
+      var unchanged = oldStory === JSON.stringify([STORY, SYSTEMS, GLOSS]) && pathsOf(oldFiles) === pathsOf(files) && (onMap ? oldAll === JSON.stringify(files) : idx >= 0 && oldSig === sigOf(files[idx]));
       if (unchanged) { renderTabs(); return; }
       if (typing()) { needRedraw = { idx: idx, gone: gone, onMap: onMap }; toast('A newer analysis is ready. It shows when you close this panel; your text is kept.'); return; }
       redraw(idx, gone, onMap);
@@ -566,7 +802,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
 
   function startIdx() { var i = fileIndex(S.selected || ''); return i >= 0 ? i : 0; }
   function route() {
-    closeOver(true);
+    closeOver(true); closeTerm();
     if (view && view.cleanup) view.cleanup();
     view = null;
     var m = /^#\/file\/(\d+)(?:\/([cr])(\d+))?/.exec(location.hash);
@@ -606,6 +842,77 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     return h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [h('div', { class: 'cap', text: 'Where this code sits' }), row, detail]);
   }
 
+  // ---- The whole-PR story: systems as lanes, numbered steps, handoffs between systems ----
+  function sysById(id) { for (var i = 0; i < SYSTEMS.length; i++) if (SYSTEMS[i].id === id) return SYSTEMS[i]; return null; }
+  function laneColor(id) { for (var i = 0; i < SYSTEMS.length; i++) if (SYSTEMS[i].id === id) return SYSTEMS[i].color || LANE_COLORS[i % LANE_COLORS.length]; return LANE_COLORS[0]; }
+  function stepById(id) { var s = STORY.steps; for (var i = 0; i < s.length; i++) if (String(s[i].id) === String(id)) return s[i]; return null; }
+  function stepNo(id) { var s = STORY.steps; for (var i = 0; i < s.length; i++) if (String(s[i].id) === String(id)) return i + 1; return 0; }
+  function filesOfStep(st) { return (st.files || []).map(fileIndex).filter(function (i) { return i >= 0; }); }
+  function laneRuns() {
+    var out = [];
+    STORY.steps.forEach(function (st) { var last = out[out.length - 1]; if (last && last.system === st.system) last.steps.push(st); else out.push({ system: st.system, steps: [st] }); });
+    return out;
+  }
+  function handoffAfter(st) { var l = STORY.handoffs || []; for (var i = 0; i < l.length; i++) if (String(l[i].after) === String(st.id)) return l[i]; return null; }
+  function srow(label, node) { return h('div', { class: 'srow' }, [h('b', { text: label }), h('div', null, [node])]); }
+  function storyDetail(cur) {
+    var st = storySel && storySel.kind === 's' ? stepById(storySel.id) : null, hd = storySel && storySel.kind === 'h' ? handoffAfter({ id: storySel.id }) : null, d = st || hd;
+    if (!d) return null;
+    var from = st ? st : stepById(hd.after), next = hd ? STORY.steps[stepNo(hd.after)] : null;
+    var color = laneColor(from ? from.system : ''), fs = filesOfStep(d);
+    var tag = st ? ((sysById(st.system) || { name: st.system }).name + ' · ' + (fs.length ? 'changed in this PR' : 'not changed in this PR')) : 'Connects ' + (sysById(from.system) || { name: from.system }).name + (next ? ' and ' + (sysById(next.system) || { name: next.system }).name : '');
+    var kids = [h('div', { class: 'sub', text: tag }), h('h3', { text: st ? 'Step ' + stepNo(st.id) + ': ' + st.label : 'Handoff: ' + hd.label })];
+    if (hd && hd.via) kids.push(srow('Done by', inline(h('span'), hd.via)));
+    if (d.short) kids.push(srow('In short', inline(h('span'), d.short)));
+    if (d.from) kids.push(srow('Comes from', inline(h('span'), d.from)));
+    if (d.to) kids.push(srow('Leads to', inline(h('span'), d.to)));
+    if (d.watch) kids.push(srow('Watch for', inline(h('span'), d.watch)));
+    if (fs.length) kids.push(srow('Files changed', h('div', { class: 'sfiles' }, fs.map(function (i) { var f = files[i]; return h('a', { class: cur && cur.path === f.path ? 'cur' : '', href: '#/file/' + (i + 1), text: base(f.path) + ' (+' + (f.adds || 0) + ' −' + (f.dels || 0) + ')' + (cur && cur.path === f.path ? ' · this file' : '') }); }))));
+    else if (st) kids.push(srow('Files changed', h('span', { class: 'sub', text: 'None. This step is part of the story but no file in this PR changes it.' })));
+    return h('div', { class: 'sdetail', style: '--lc:' + color }, kids);
+  }
+  // cur: the file being viewed (its steps are highlighted), or null on the map page.
+  function storyBox(cur, compact) {
+    var box = h('div', { class: 'story' });
+    function draw() {
+      box.innerHTML = '';
+      var lanes = h('div', { class: 'lanes' + (compact ? ' compact' : '') }), runs = laneRuns();
+      runs.forEach(function (r, ri) {
+        var c = laneColor(r.system), sys = sysById(r.system) || { name: r.system }, seen = {}, nf = 0;
+        r.steps.forEach(function (st) { filesOfStep(st).forEach(function (i) { if (!seen[i]) { seen[i] = 1; nf++; } }); });
+        var row = h('div', { class: 'lsteps' });
+        r.steps.forEach(function (st, i) {
+          if (i) row.appendChild(h('span', { class: 'arrow', 'aria-hidden': 'true', text: '→' }));
+          var here = cur && (cur.steps || []).indexOf(String(st.id)) >= 0, nfile = (st.files || []).length;
+          var on = storySel && storySel.kind === 's' && String(storySel.id) === String(st.id);
+          row.appendChild(h('button', { class: 'sstep' + (nfile ? '' : ' ext') + (here ? ' here' : '') + (on ? ' sel' : ''), type: 'button', style: '--lc:' + c, 'aria-pressed': on ? 'true' : 'false', title: st.label, onclick: function () { storySel = on ? null : { kind: 's', id: st.id }; draw(); } }, [h('span', { class: 'snum', text: String(stepNo(st.id)) }), h('span', { text: clip(st.label, 40) }), !compact && nfile ? h('span', { class: 'schg', text: '· ' + nfile + ' file' + (nfile === 1 ? '' : 's') }) : null]));
+        });
+        lanes.appendChild(h('div', { class: 'lane' }, [h('div', { class: 'lab', style: 'background:' + c }, [h('b', { text: String(sys.name || r.system).toUpperCase() }), h('span', { text: (sys.sub ? sys.sub + (nf ? ' · ' : '') : '') + (nf ? nf + ' file' + (nf === 1 ? '' : 's') : (sys.sub ? '' : 'no files changed')) })]), row]));
+        var hd = ri < runs.length - 1 ? handoffAfter(r.steps[r.steps.length - 1]) : null;
+        if (hd) {
+          var hon = storySel && storySel.kind === 'h' && String(storySel.id) === String(hd.after);
+          lanes.appendChild(h('button', { class: 'shand' + (hon ? ' sel' : ''), type: 'button', 'aria-pressed': hon ? 'true' : 'false', onclick: function () { storySel = hon ? null : { kind: 'h', id: hd.after }; draw(); } }, [h('span', { class: 'pill', text: '↓ HANDOFF' }), h('b', { text: hd.label }), hd.via ? h('small', { text: String(hd.via).replace(/`|\*\*/g, '') }) : null]));
+        }
+      });
+      box.appendChild(lanes);
+      var d = storyDetail(cur); if (d) box.appendChild(d);
+      else if (!compact) box.appendChild(h('div', { class: 'sub', text: 'Click a step or a handoff to see what it does and which files it covers.' }));
+    }
+    draw();
+    return box;
+  }
+  function fileStory(f) {
+    storySel = null;
+    var mine = (f.steps || []).map(function (id) { return stepNo(id); }).join(', ');
+    return h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [
+      h('div', { class: 'cap', text: 'Where this code sits' + (mine ? ' · this file is in step ' + mine : ' · this file is not part of the story') }),
+      storyBox(f, true)
+    ]);
+  }
+  function stepBadges(f) {
+    return (f.steps || []).map(function (id) { var st = stepById(id); return st ? h('span', { class: 'snum', style: '--lc:' + laneColor(st.system) + ';margin-right:4px', title: st.label, text: String(stepNo(id)) }) : null; });
+  }
+
   function pageTitle() { return 'Review in Context' + (pr.number ? ' - PR #' + pr.number : '') + (pr.title ? ' - ' + pr.title : ''); }
   function renderMap() {
     document.title = pageTitle();
@@ -616,6 +923,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       box.checked = !!S.reviewed[f.path];
       return h('tr', null, [
         h('td', { text: String(i + 1) }),
+        STORY ? h('td', null, stepBadges(f)) : null,
         h('td', null, [h('a', { class: 'file', href: '#/file/' + (i + 1), text: f.path }), f.summary ? h('div', { class: 'sub', text: f.summary }) : null]),
         h('td', null, [h('span', { class: 'badge ' + f.status, text: f.status })]),
         h('td', { text: f.skipped ? 'not shown: ' + f.skipped : String((f.changes || []).length) }),
@@ -625,6 +933,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     });
     var first = 0;
     for (var i = 0; i < files.length; i++) { if (!S.reviewed[files[i].path]) { first = i; break; } }
+    if (STORY) { storySel = null; for (var si = 0; si < STORY.steps.length; si++) if ((STORY.steps[si].files || []).length) { storySel = { kind: 's', id: STORY.steps[si].id }; break; } }
     app.innerHTML = '';
     app.appendChild(h('div', { class: 'wrap' }, [
       h('div', { class: 'bar' }, [
@@ -632,10 +941,12 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
         h('a', { class: 'btn primary', href: '#/file/' + (first + 1), text: nDone() ? 'Continue with file ' + (first + 1) : 'Start with file 1' }),
         h('div', { class: 'rowx' }, [themeBtn(), pauseBtn()])
       ]),
-      pr.summary ? h('div', { text: pr.summary }) : null,
-      h('div', { style: 'display:flex;justify-content:space-between;align-items:baseline;gap:12px' }, [h('div', { class: 'cap', text: files.length + ' changed files' }), count]),
+      pr.summary ? h('div', null, [inline(h('span'), pr.summary)]) : null,
+      STORY ? h('div', { class: 'cap', text: 'Where this code sits: the whole PR as one story' }) : null,
+      STORY ? storyBox(null, false) : null,
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:baseline;gap:12px' }, [h('div', { class: 'cap', text: files.length + ' changed files' + (STORY ? ', in the order the story runs' : '') }), count]),
       h('div', { class: 'tablewrap' }, [h('table', null, [
-        h('thead', null, [h('tr', null, ['#', 'File', 'Status', 'Changes', 'Flags', 'Reviewed'].map(function (t) { return h('th', { text: t }); }))]),
+        h('thead', null, [h('tr', null, (STORY ? ['#', 'Step', 'File', 'Status', 'Changes', 'Flags', 'Reviewed'] : ['#', 'File', 'Status', 'Changes', 'Flags', 'Reviewed']).map(function (t) { return h('th', { text: t }); }))]),
         h('tbody', null, rows)
       ])])
     ]));
@@ -657,36 +968,60 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     for (var j = Math.max(0, idx - 1); j <= Math.min(N - 1, idx + 2); j++) chips.push(h('a', { class: 'chip' + (j === idx ? ' cur' : '') + (S.reviewed[files[j].path] && j !== idx ? ' done' : ''), href: '#/file/' + (j + 1), title: files[j].path, text: (j + 1) + ' ' + base(files[j].path) + ' · ' + files[j].status }));
     var rest = N - chips.length;
     var code = h('div', { class: 'code', tabindex: '0', 'aria-label': 'Whole file, scrollable' });
-    var inner = h('div', { class: 'code-inner' });
-    var rowChange = {}, rowEls = [], marks = [];
+    var inner = h('div', { class: 'code-inner' }), win = h('div', { class: 'code-win' });
+    // Windowed rendering: only the rows near the viewport exist in the DOM (rows are a fixed LH tall), so a 15,000 line file costs the same as a short one.
+    var toks = tokensFor(f), rowChange = {}, mounted = {}, byRow = {}, targetRow = -1, winFirst = 0, winLast = -1, OVERSCAN = 40;
+    if (toks) inner.className += ' hl';
     changes.forEach(function (c, ci) { for (var r = c.startRow; r <= c.endRow; r++) rowChange[r] = ci; });
     var refsByLine = {};
     (f.refs || []).forEach(function (r) { (refsByLine[r.line] = refsByLine[r.line] || []).push(r); });
     function lineNo(ln) { return ln.n != null ? ln.n : ln.o; }
-    lines.forEach(function (ln, ri) {
+    function markText(ri) { var b = byRow[ri]; return b ? [b.c ? b.c + ' comment' + (b.c === 1 ? '' : 's') : '', b.q ? b.q + ' asked' : '', b.p ? b.p + ' on PR' : ''].filter(Boolean).join(' · ') : ''; }
+    function mkRow(ri) {
+      var ln = lines[ri];
       var ci = rowChange[ri], cls = 'row' + (ln.k === '+' ? ' add' : ln.k === '-' ? ' del' : '');
       if (ci != null) cls += ' chg' + (changes[ci].level === 'attention' ? ' attn' : '');
-      var kids = [], t = ln.t, refs = (ln.k !== '-' || deleted) ? (refsByLine[lineNo(ln)] || []) : [], pos = 0;
-      refs.forEach(function (r) {
-        var at = t.indexOf(r.text, pos);
-        if (at < 0) return;
-        if (at > pos) kids.push(t.slice(pos, at));
-        kids.push(h('button', { class: 'ref', type: 'button', text: r.text, onclick: function () { r.types ? openTypes() : openEntity(r.id); } }));
-        pos = at + r.text.length;
-      });
-      kids.push(t.slice(pos) || (pos ? '' : ' '));
+      var t = ln.t, refs = ((ln.k !== '-' || deleted) ? (refsByLine[lineNo(ln)] || []) : []).map(function (r) { return { text: r.text, onclick: function () { r.types ? openTypes() : openEntity(r.id); } }; });
+      var kids = lineKids(t, toks && toks[ri], refs);
       var mark = h('button', { class: 'mark', type: 'button', onclick: function () { openLine(ri); } });
-      marks.push(mark);
+      mark.textContent = markText(ri);
+      if (ri === targetRow) cls += ' target';
       var el = h('div', { class: cls }, [h('span', { class: 'gut' }), h('button', { class: 'num', type: 'button', title: 'Comment or ask about this line', 'aria-label': (ln.k === '-' ? 'Removed line, old line ' : 'Line ') + lineNo(ln) + ': comment or ask', text: ln.k === '-' && !deleted ? '\u00b7\u00b7' : String(lineNo(ln)), onclick: function () { openLine(ri); } }), h('span', { class: 'sign', text: ln.k === ' ' ? ' ' : ln.k }), h('span', null, kids), mark]);
-      rowEls.push(el); inner.appendChild(el);
-    });
+      mounted[ri] = { el: el, mark: mark };
+      return el;
+    }
+    function dropRow(ri) { if (mounted[ri]) { mounted[ri].el.remove(); delete mounted[ri]; } }
+    function paint() {
+      var n = lines.length; if (!n) return;
+      var vh = code.clientHeight || 800;
+      var first = Math.max(0, Math.floor(code.scrollTop / LH) - OVERSCAN), last = Math.min(n - 1, Math.ceil((code.scrollTop + vh) / LH) + OVERSCAN), r;
+      if (first === winFirst && last === winLast) return;
+      if (winLast < winFirst || first > winLast || last < winFirst) {
+        win.textContent = ''; mounted = {};
+        var frag = document.createDocumentFragment();
+        for (r = first; r <= last; r++) frag.appendChild(mkRow(r));
+        win.appendChild(frag);
+      } else {
+        for (r = winFirst; r < first; r++) dropRow(r);
+        for (r = winLast; r > last; r--) dropRow(r);
+        for (r = Math.min(winFirst, last + 1) - 1; r >= first; r--) win.insertBefore(mkRow(r), win.firstChild);
+        for (r = Math.max(winLast, first - 1) + 1; r <= last; r++) win.appendChild(mkRow(r));
+      }
+      win.style.top = first * LH + 'px'; winFirst = first; winLast = last;
+    }
+    // Fixed height and a stable width keep the scrollbars honest even though most rows are not in the DOM.
+    var maxCols = 0;
+    lines.forEach(function (ln) { var w = ln.t.length; if (ln.t.indexOf('\t') >= 0) w += ln.t.split('\t').length - 1; if (w > maxCols) maxCols = w; });
+    inner.style.height = lines.length * LH + 'px';
+    inner.style.minWidth = 'max(100%, calc(140px + ' + maxCols + 'ch))';
+    inner.appendChild(win);
     code.appendChild(inner);
     function decorate() {
-      var byRow = {};
+      byRow = {};
       S.comments.forEach(function (c) { if (c.path === f.path && c.row != null) { byRow[c.row] = byRow[c.row] || { c: 0, q: 0, p: 0 }; byRow[c.row].c++; } });
       S.chat.forEach(function (m) { if (m.role === 'user' && m.anchor && m.anchor.path === f.path && m.anchor.row != null) { byRow[m.anchor.row] = byRow[m.anchor.row] || { c: 0, q: 0, p: 0 }; byRow[m.anchor.row].q++; } });
       prLine().forEach(function (c) { if (c.path !== f.path) return; var r = rowFor(c.path, c.line, c.side); if (r < 0) return; byRow[r] = byRow[r] || { c: 0, q: 0, p: 0 }; byRow[r].p++; });
-      marks.forEach(function (mk, ri) { var b = byRow[ri]; mk.textContent = b ? [b.c ? b.c + ' comment' + (b.c === 1 ? '' : 's') : '', b.q ? b.q + ' asked' : '', b.p ? b.p + ' on PR' : ''].filter(Boolean).join(' · ') : ''; });
+      Object.keys(mounted).forEach(function (ri) { mounted[ri].mark.textContent = markText(+ri); });
       box.checked = !!S.reviewed[f.path]; cnt.textContent = ' · ' + nDone() + ' reviewed';
     }
     var colL = h('div', { class: 'col' }), colR = h('div', { class: 'col' });
@@ -700,7 +1035,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       jumpBtns.forEach(function (b, ci) { b.classList.toggle('sel', ci === sel); b.setAttribute('aria-pressed', ci === sel ? 'true' : 'false'); });
       if (baTab) baTab.textContent = 'Before / after: ' + (sel >= 0 ? 'change ' + (sel + 1) : 'whole file');
     }
-    function scrollToRow(r) { var was = code.scrollTop; code.scrollTop = Math.max(0, r * LH - code.clientHeight * 0.3); if (code.scrollTop !== was) skipScroll = true; layout(); }
+    function scrollToRow(r) { var was = code.scrollTop; code.scrollTop = Math.max(0, r * LH - code.clientHeight * 0.3); if (code.scrollTop !== was) skipScroll = true; paint(); layout(); }
     function jumpTo(ci) { if (!changes[ci]) return; sel = ci; syncSel(); scrollToRow(changes[ci].startRow); }
     function cardFor(id, top, col) {
       var e = ents[id] || { name: id, sub: 'No details recorded' };
@@ -752,6 +1087,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     }
     var timer = null, rz = null;
     code.addEventListener('scroll', function () {
+      paint();
       if (skipScroll) { skipScroll = false; return; }
       if (sel !== -1) { sel = -1; syncSel(); }
       stage.classList.add('scrolling'); clearTimeout(timer); timer = setTimeout(layout, 140);
@@ -771,7 +1107,8 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
         var s = e.snippet, b2 = h('div', null, [e.where ? h('div', { class: 'mono', style: 'font-size:13px', text: e.where }) : null]);
         if (s && s.lines && s.lines.length) {
           var sn = h('div', { class: 'snip' + (e.attention ? ' attn' : '') });
-          s.lines.forEach(function (t, i) { var no = s.start != null ? s.start + i : null; sn.appendChild(h('div', { class: no != null && no === s.highlight ? 'hl' : '', text: (no != null ? String(no) + '  ' : '') + t })); });
+          var sl = langOf((/([\w@.\-\/]+\.[A-Za-z0-9]+)/.exec(e.where || '') || [])[1] || ''), stoks = sl ? (sl === 'markup' ? scanMarkup(s.lines) : scanLines(L[sl], s.lines)) : null;
+          s.lines.forEach(function (t, i) { var no = s.start != null ? s.start + i : null; sn.appendChild(h('div', { class: no != null && no === s.highlight ? 'hl' : '' }, [(no != null ? String(no) + '  ' : '')].concat(lineKids(t, stoks && stoks[i], [])))); });
           b2.appendChild(sn);
         }
         kids.push(sect((s && s.label) || 'Where it lives', b2));
@@ -845,14 +1182,14 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
         h('div', { class: 'rowx', style: 'justify-content:space-between' }, [h('div', null, [h('b', { text: 'File ' + (idx + 1) + ' of ' + N }), cnt]), h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:36px;font-size:14px', for: 'rev' }, [box, 'Mark this file as reviewed'])]),
         h('div', { class: 'rowx' }, [prev].concat(chips, [rest > 0 ? h('a', { class: 'sub', href: '#/map', text: rest + ' more files' }) : null, next]))
       ]),
-      !(f.flow && f.flow.length) && !f.skipped ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [h('div', { class: 'cap', text: 'Where this code sits' }), h('div', { class: 'rowx' }, [h('span', { class: 'sub', text: 'Claude did not describe where this file sits in the flow.' }), h('button', { class: 'btn small', type: 'button', text: 'Ask Claude where this sits', onclick: function () { openChat({ kind: 'file', path: f.path, label: f.path }, 'Where does this file sit in the overall flow? What runs before it and what runs after it?'); } })])]) : null,
-      f.flow && f.flow.length ? flowStrip(f) : null,
-      f.summary ? h('div', { class: 'sub', style: 'font-size:14px', text: f.summary }) : null,
+      !STORY && !(f.flow && f.flow.length) && !f.skipped ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [h('div', { class: 'cap', text: 'Where this code sits' }), h('div', { class: 'rowx' }, [h('span', { class: 'sub', text: 'Claude did not describe where this file sits in the flow.' }), h('button', { class: 'btn small', type: 'button', text: 'Ask Claude where this sits', onclick: function () { openChat({ kind: 'file', path: f.path, label: f.path }, 'Where does this file sit in the overall flow? What runs before it and what runs after it?'); } })])]) : null,
+      STORY && !f.skipped ? fileStory(f) : (f.flow && f.flow.length ? flowStrip(f) : null),
+      f.summary ? h('div', { class: 'sub', style: 'font-size:14px' }, [inline(h('span'), f.summary)]) : null,
       changes.length ? h('div', { class: 'jumps' }, [h('b', { text: 'Jump to' })].concat(jumpBtns)) : null,
       h('div', { class: 'heads' }, [h('div', { class: 'cap', text: deleted ? 'What still points at this file' : 'What starts this code' }), h('div'), h('div', { class: 'cap', text: deleted ? 'What this code used' : 'What this code uses' })]),
       stage,
       changes.some(function (c) { return c.note; }) ? h('div', { class: 'notes' }, changes.map(function (c, ci) {
-        return c.note ? h('div', { class: 'note ' + (c.level || '') }, [h('span', { class: 'k', text: changeName(ci) + (c.level === 'attention' ? ' · needs attention' : '') }), h('span', { text: c.note }), h('div', { class: 'rowx' }, [h('button', { class: 'btn small', type: 'button', text: 'Go to this change', onclick: function () { jumpTo(ci); window.scrollTo(0, stage.offsetTop - 120); } }), askBtn({ kind: 'change', path: f.path, change: ci, label: base(f.path) + ' · ' + changeName(ci) })])]) : null;
+        return c.note ? h('div', { class: 'note ' + (c.level || '') }, [h('span', { class: 'k', text: changeName(ci) + (c.level === 'attention' ? ' · needs attention' : '') }), inline(h('span'), c.note), h('div', { class: 'rowx' }, [h('button', { class: 'btn small', type: 'button', text: 'Go to this change', onclick: function () { jumpTo(ci); window.scrollTo(0, stage.offsetTop - 120); } }), askBtn({ kind: 'change', path: f.path, change: ci, label: base(f.path) + ' · ' + changeName(ci) })])]) : null;
       })) : null,
       h('div', { class: 'legend' }, [
         h('span', null, [h('i', { class: 'sw', style: 'background:var(--add);border-color:var(--add-edge)' }), 'Added line']),
@@ -875,9 +1212,10 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       cleanup: function () { window.removeEventListener('resize', onResize); clearTimeout(timer); clearTimeout(rz); }
     };
     decorate();
+    paint();
     if (!f.skipped) {
-      if (RESTORE && RESTORE.path === f.path) { sel = RESTORE.sel; syncSel(); if (code.scrollTop !== RESTORE.codeTop) skipScroll = true; code.scrollTop = RESTORE.codeTop; layout(); }
-      else if (wantRow >= 0 && rowEls[wantRow]) { rowEls[wantRow].classList.add('target'); scrollToRow(wantRow); }
+      if (RESTORE && RESTORE.path === f.path) { sel = RESTORE.sel; syncSel(); if (code.scrollTop !== RESTORE.codeTop) skipScroll = true; code.scrollTop = RESTORE.codeTop; paint(); layout(); }
+      else if (wantRow >= 0 && lines[wantRow]) { targetRow = wantRow; if (mounted[wantRow]) mounted[wantRow].el.classList.add('target'); scrollToRow(wantRow); }
       else if (wantChange >= 0 && changes[wantChange]) jumpTo(wantChange);
       else if (changes.length) scrollToRow(changes[0].startRow);
       else layout();

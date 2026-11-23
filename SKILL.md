@@ -134,6 +134,27 @@ Shape of the file:
 
 - `flow` is required for every file. It fills the "Where this code sits" strip and tells the story of the ticket, not just the neighbouring code. Step 1 is the user's action from the story or epic. If there is a problem this code solves (a CORS rule, a permission check, a data shape), give it its own step. Then this file, marked `"state": "here"` (exactly one step), then what happens next in the larger feature. Use 4 to 6 steps, in the order things happen. `state` is one of `here`, `changed` (another file in this PR), `unchanged`, `external`. Example for an address-rewriting helper: "User presses Insert" > "downloadWordTemplate asks for the file" > "Problem: browser blocks S3 (CORS)" > "filesUrl.ts rewrites the address" (here) > "Dev server proxy asks S3" > "File returns, goes into Word". For a file with no run-time path (config or types), describe what reads or depends on it instead, for example build > this config > the Lambda that loads it.
 - Each flow step has a `label` (at most 40 characters) and an optional `note` (at most 60). The page shows one line per step and cuts anything longer with an ellipsis. Put longer plain-language text in an optional `detail`: the reviewer clicks the step (or presses Enter or Space on it) to open it under the strip. A `changed` or `external` step whose label is more than about 4 words needs a `detail`. `rcc build` warns about all three, naming the file and step, and about any file without a flow.
+**The whole-PR story (preferred over a per-file `flow`).** Add three optional top-level keys. With a `story`, every file shows the same story with its own step highlighted, the map page shows it once for the whole PR, and files are listed in the order the story runs. A file that is in a story step needs no `flow`.
+
+```json
+"systems": [ { "id": "app", "name": "App", "sub": "already shipped" }, { "id": "snow", "name": "Snowflake", "sub": "dbt" }, { "id": "gd", "name": "GoodData" } ],
+"story": {
+  "steps": [
+    { "id": "staging", "system": "snow", "label": "Staging", "files": ["packages/dbt/models/staging/schema.yml"],
+      "short": "One plain sentence: what happens in this step.", "from": "what feeds it", "to": "what it feeds", "watch": "what a reviewer should check" }
+  ],
+  "handoffs": [ { "after": "app", "label": "Hevo copies Postgres into Snowflake raw", "via": "the process or files that do the connecting", "short": "…", "from": "…", "to": "…", "watch": "…", "files": [] } ]
+},
+"glossary": { "mart": { "term": "mart", "aliases": ["marts"], "kind": "Snowflake / dbt term", "short": "One-line plain definition.", "detail": "What it means in this PR." } }
+```
+
+- `systems` are the lanes, for example the app, the warehouse, the reporting tool, or only one of them when the PR lives in one system. Name only the systems the story touches. A system's colour comes from its position in the list.
+- Steps run in the order things happen. Consecutive steps in the same system share a lane. Step 1 is usually the user's action. A step no file in the PR changes (a raw table, tables that pick a column up with no code change) has `"files": []` and is drawn dashed.
+- Every changed file that is shown must be listed in the `files` of at least one step, in the order a reviewer should read them. A file may be in several steps. `rcc build` warns about any that is in none.
+- A handoff goes between two steps in different systems. `after` is the id of the last step before it. `via` says what does the connecting: a process, a workflow, or the files in the PR. Say plainly when it is not in this repo or not in this PR. `rcc build` warns when two neighbouring steps are in different systems and there is no handoff.
+- `glossary` is every word a reviewer who does not work in this area would not know: system names, tools, internal terms, business terms. The page underlines each one wherever it appears and opens the definition when clicked. `term` is what to match (matching ignores case); `aliases` are other spellings. Do not define everyday words.
+- Text in a step, handoff or glossary entry can use backticks for code and `**bold**`. Every `label` is at most 40 characters.
+
 - `refs` make a name in the code clickable. `line` is the new line number (the old one for a deleted file) and `text` must appear on that line.
 - `level` is `attention`, `ok`, or left out.
 - `types` are the type definitions a reader needs for this file, copied from the code.

@@ -4,7 +4,7 @@ A Claude Code skill for reviewing a pull request in your browser, one file at a 
 
 You run one command in your terminal on a checked-out PR branch. Claude reads the diff and the surrounding repository, then opens a local page where you can:
 
-- see every added, modified and deleted file, with the changes in place in the full file;
+- see every added, modified and deleted file, with the changes in place in the full file and syntax coloured the way GitHub does it (light and dark; JavaScript/TypeScript, Python, Java/Kotlin, C-family, Go, Rust, Ruby, PHP, shell, SQL, JSON, YAML, CSS, HTML and more, with no packages to install);
 - see what calls each change and what each change uses, with lines drawn to the change;
 - read a plain-language "before and after" for each change and for each file;
 - click any line, card or flagged change and ask Claude about it, without retyping where you are;
