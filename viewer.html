@@ -47,6 +47,9 @@ button.step[aria-expanded=true]{outline:2px solid var(--blue);outline-offset:1px
 .jump.sel{background:var(--strong);border-color:var(--strong);color:var(--on-strong)}
 .heads,.stage{display:grid;grid-template-columns:250px minmax(0,1fr) 250px;column-gap:56px}
 .stage{position:relative}
+.stagewrap{display:flex;flex-direction:column;gap:14px}
+.heads{position:sticky;top:0;z-index:6;background:var(--bg);padding:6px 0}
+.heads.pinned{box-shadow:0 1px 0 var(--line)}
 .col{position:relative}
 .pane{border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:var(--bg)}
 .pane-head{height:36px;line-height:36px;padding:0 12px;background:var(--strong);color:var(--on-strong);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1029,6 +1032,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     var shown = lines.filter(function (l) { return l.k !== '-' || deleted; }).length;
     var pane = h('div', { class: 'pane' }, [h('div', { class: 'pane-head', text: f.path + ' · ' + (f.skipped ? 'not shown' : 'whole file, ' + shown + ' lines') }), f.skipped ? h('div', { style: 'padding:24px', text: 'This file is not shown: ' + f.skipped + '.' }) : code]);
     var stage = h('div', { class: 'stage' }, [colL, pane, colR, wires]);
+    var headsEl = h('div', { class: 'heads' }, [h('div', { class: 'cap', text: deleted ? 'What still points at this file' : 'What starts this code' }), h('div'), h('div', { class: 'cap', text: deleted ? 'What this code used' : 'What this code uses' })]);
     var jumpBtns = [], baTab = null;
     function changeName(ci) { return 'Change ' + (ci + 1) + (changes[ci].title ? ' · ' + changes[ci].title : ''); }
     function syncSel() {
@@ -1042,10 +1046,19 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       col.appendChild(h('button', { class: 'card' + (e.attention ? ' attn' : e.external ? ' ext' : e.inPr ? ' inpr' : ''), type: 'button', style: 'top:' + top + 'px', title: e.name, onclick: function () { openEntity(id); } }, [h('b', { text: e.name || id }), h('span', { text: e.sub || '' })]));
       return e;
     }
+    // The part of the stage that is on screen. The column headings stick to the top of the window while the stage is in view,
+    // so the cards are kept inside this band: they slide down as the page scrolls past the top of the stage, and settle back when it returns.
+    function band() {
+      var r = stage.getBoundingClientRect(), stageH = stage.clientHeight, vt = Math.max(0, headsEl.offsetHeight - r.top + 4), vb = Math.min(stageH, window.innerHeight - r.top - 8);
+      if (vb - vt < CARD + 8) { vt = 0; vb = stageH; }
+      return [Math.round(vt), Math.round(vb)];
+    }
+    var lastBand = '';
     function layout() {
       colL.innerHTML = ''; colR.innerHTML = ''; while (wires.firstChild) wires.removeChild(wires.firstChild);
       if (f.skipped) return;
-      var H = code.clientHeight, st = code.scrollTop, stageH = stage.clientHeight, vis = [];
+      var H = code.clientHeight, st = code.scrollTop, stageH = stage.clientHeight, vis = [], bd = band(), vt = bd[0], vb = bd[1];
+      lastBand = bd.join(',');
       changes.forEach(function (c, ci) {
         var top = c.startRow * LH - st, bot = (c.endRow + 1) * LH - st;
         if (bot <= 6 || top >= H - 6) return;
@@ -1066,10 +1079,10 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
           var n = ids.length + (more ? 1 : 0) || 1;
           return { v: v, ids: ids, more: more, all: v.c[side[1]] || [], h: n * CARD + (n - 1) * GAP };
         });
-        var cursor = 0;
-        groups.forEach(function (g) { g.top = Math.max(g.v.cy - g.h / 2, cursor, 0); cursor = g.top + g.h + 14; });
-        var maxB = stageH;
-        for (var i = groups.length - 1; i >= 0; i--) { if (groups[i].top + groups[i].h > maxB) groups[i].top = Math.max(0, maxB - groups[i].h); maxB = groups[i].top - 14; }
+        var cursor = vt;
+        groups.forEach(function (g) { g.top = Math.max(g.v.cy - g.h / 2, cursor, vt); cursor = g.top + g.h + 14; });
+        var maxB = vb;
+        for (var i = groups.length - 1; i >= 0; i--) { if (groups[i].top + groups[i].h > maxB) groups[i].top = Math.max(vt, maxB - groups[i].h); maxB = groups[i].top - 14; }
         var xCol = isLeft ? col.offsetLeft + col.offsetWidth : col.offsetLeft, xPane = isLeft ? pane.offsetLeft - 3 : pane.offsetLeft + pane.offsetWidth + 3;
         groups.forEach(function (g) {
           var y = g.top;
@@ -1094,6 +1107,16 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     });
     function onResize() { clearTimeout(rz); rz = setTimeout(layout, 120); }
     window.addEventListener('resize', onResize);
+    var winRaf = 0;
+    function onWinScroll() {
+      if (winRaf) return;
+      winRaf = requestAnimationFrame(function () {
+        winRaf = 0;
+        headsEl.classList.toggle('pinned', headsEl.getBoundingClientRect().top <= 0.5);
+        if (!f.skipped && band().join(',') !== lastBand) layout();
+      });
+    }
+    window.addEventListener('scroll', onWinScroll, { passive: true });
 
     function askBtn(anchor, text) { return h('button', { class: 'btn small', type: 'button', text: text || 'Ask Claude about this', onclick: function () { openChat(anchor); } }); }
     function openEntity(id) {
@@ -1186,8 +1209,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       STORY && !f.skipped ? fileStory(f) : (f.flow && f.flow.length ? flowStrip(f) : null),
       f.summary ? h('div', { class: 'sub', style: 'font-size:14px' }, [inline(h('span'), f.summary)]) : null,
       changes.length ? h('div', { class: 'jumps' }, [h('b', { text: 'Jump to' })].concat(jumpBtns)) : null,
-      h('div', { class: 'heads' }, [h('div', { class: 'cap', text: deleted ? 'What still points at this file' : 'What starts this code' }), h('div'), h('div', { class: 'cap', text: deleted ? 'What this code used' : 'What this code uses' })]),
-      stage,
+      h('div', { class: 'stagewrap' }, [headsEl, stage]),
       changes.some(function (c) { return c.note; }) ? h('div', { class: 'notes' }, changes.map(function (c, ci) {
         return c.note ? h('div', { class: 'note ' + (c.level || '') }, [h('span', { class: 'k', text: changeName(ci) + (c.level === 'attention' ? ' · needs attention' : '') }), inline(h('span'), c.note), h('div', { class: 'rowx' }, [h('button', { class: 'btn small', type: 'button', text: 'Go to this change', onclick: function () { jumpTo(ci); window.scrollTo(0, stage.offsetTop - 120); } }), askBtn({ kind: 'change', path: f.path, change: ci, label: base(f.path) + ' · ' + changeName(ci) })])]) : null;
       })) : null,
@@ -1209,7 +1231,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
         if (f.types && f.types.length) t.push(h('button', { class: 'tab', type: 'button', id: 'tab-types', text: 'Types', onclick: openTypes }));
         syncSel(); return t;
       },
-      cleanup: function () { window.removeEventListener('resize', onResize); clearTimeout(timer); clearTimeout(rz); }
+      cleanup: function () { window.removeEventListener('resize', onResize); window.removeEventListener('scroll', onWinScroll); cancelAnimationFrame(winRaf); clearTimeout(timer); clearTimeout(rz); }
     };
     decorate();
     paint();
