@@ -137,15 +137,15 @@ Shape of the file:
 **The whole-PR story (preferred over a per-file `flow`).** Add three optional top-level keys. With a `story`, every file shows the same story with its own step highlighted, the map page shows it once for the whole PR, and files are listed in the order the story runs. A file that is in a story step needs no `flow`.
 
 ```json
-"systems": [ { "id": "app", "name": "App", "sub": "already shipped" }, { "id": "snow", "name": "Snowflake", "sub": "dbt" }, { "id": "gd", "name": "GoodData" } ],
+"systems": [ { "id": "web", "name": "Web app", "sub": "unchanged" }, { "id": "api", "name": "API" }, { "id": "db", "name": "Database" } ],
 "story": {
   "steps": [
-    { "id": "staging", "system": "snow", "label": "Staging", "files": ["packages/dbt/models/staging/schema.yml"],
+    { "id": "validate", "system": "api", "label": "Validate the request", "files": ["src/api/validate.ts"],
       "short": "One plain sentence: what happens in this step.", "from": "what feeds it", "to": "what it feeds", "watch": "what a reviewer should check" }
   ],
-  "handoffs": [ { "after": "app", "label": "Hevo copies Postgres into Snowflake raw", "via": "the process or files that do the connecting", "short": "…", "from": "…", "to": "…", "watch": "…", "files": [] } ]
+  "handoffs": [ { "after": "submit", "label": "Browser sends the form to the API", "via": "the process or files that do the connecting", "short": "…", "from": "…", "to": "…", "watch": "…", "files": [] } ]
 },
-"glossary": { "mart": { "term": "mart", "aliases": ["marts"], "kind": "Snowflake / dbt term", "short": "One-line plain definition.", "detail": "What it means in this PR." } }
+"glossary": { "idempotent": { "term": "idempotent", "aliases": ["idempotency"], "kind": "General term", "short": "One-line plain definition.", "detail": "What it means in this PR." } }
 ```
 
 - `systems` are the lanes, for example the app, the warehouse, the reporting tool, or only one of them when the PR lives in one system. Name only the systems the story touches. A system's colour comes from its position in the list.

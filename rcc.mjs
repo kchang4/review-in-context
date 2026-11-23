@@ -185,7 +185,7 @@ function merge() {
   const stepsOf = {};
   if (story) {
     const seen = new Set(), sysIds = new Set(systems.map((s) => s.id));
-    if (!systems.length) warn.push('"story" needs "systems": a list of { "id", "name" } lanes, for example App, Snowflake, GoodData.');
+    if (!systems.length) warn.push('"story" needs "systems": a list of { "id", "name" } lanes, for example Web app, API, Database.');
     story.steps.forEach((st, i) => {
       const at = 'story step ' + (i + 1) + (st.label ? ' ("' + String(st.label).slice(0, 20) + '")' : '');
       if (st.id == null || st.id === '') warn.push(at + ': missing "id".'); else if (seen.has(String(st.id))) warn.push(at + ': duplicate id "' + st.id + '".'); else seen.add(String(st.id));
