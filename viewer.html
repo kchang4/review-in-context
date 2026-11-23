@@ -977,7 +977,8 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
     box.checked = !!S.reviewed[f.path];
     var chips = [];
     for (var j = Math.max(0, idx - 1); j <= Math.min(N - 1, idx + 2); j++) chips.push(h('a', { class: 'chip' + (j === idx ? ' cur' : '') + (S.reviewed[files[j].path] && j !== idx ? ' done' : ''), href: '#/file/' + (j + 1), title: files[j].path, text: (j + 1) + ' ' + base(files[j].path) + ' · ' + files[j].status }));
-    var rest = N - chips.length;
+    var before = Math.max(0, idx - 1), after = Math.max(0, N - 1 - (idx + 2));
+    function more(n, word) { return h('a', { class: 'sub', href: '#/map', title: 'See the whole list', text: n + ' ' + word + ' file' + (n === 1 ? '' : 's') }); }
     var code = h('div', { class: 'code', tabindex: '0', 'aria-label': 'Whole file, scrollable' });
     var inner = h('div', { class: 'code-inner' }), win = h('div', { class: 'code-win' });
     // Windowed rendering: only the rows near the viewport exist in the DOM (rows are a fixed LH tall), so a 15,000 line file costs the same as a short one.
@@ -1234,7 +1235,7 @@ td a.file{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
       ]),
       h('div', { class: 'filebar' }, [
         h('div', { class: 'rowx', style: 'justify-content:space-between' }, [h('div', null, [h('b', { text: 'File ' + (idx + 1) + ' of ' + N }), cnt]), h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:36px;font-size:14px', for: 'rev' }, [box, 'Mark this file as reviewed'])]),
-        h('div', { class: 'rowx' }, [prev].concat(chips, [rest > 0 ? h('a', { class: 'sub', href: '#/map', text: rest + ' more files' }) : null, next]))
+        h('div', { class: 'rowx' }, [prev].concat(before ? [more(before, 'earlier')] : [], chips, after ? [more(after, 'more')] : [], [next]))
       ]),
       !STORY && !(f.flow && f.flow.length) && !f.skipped ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [h('div', { class: 'cap', text: 'Where this code sits' }), h('div', { class: 'rowx' }, [h('span', { class: 'sub', text: 'Claude did not describe where this file sits in the flow.' }), h('button', { class: 'btn small', type: 'button', text: 'Ask Claude where this sits', onclick: function () { openChat({ kind: 'file', path: f.path, label: f.path }, 'Where does this file sit in the overall flow? What runs before it and what runs after it?'); } })])]) : null,
       STORY && !f.skipped ? fileStory(f) : (f.flow && f.flow.length ? flowStrip(f) : null),
