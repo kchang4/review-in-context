@@ -171,19 +171,27 @@ Run `rcc start`. It starts a small local server, opens the browser, and prints t
 
 ## 6. Listen and answer
 
-Loop:
+The reviewer may keep the page open for hours. Do not spend tokens while they read: wait in the background and let the shell wake you.
 
-1. Run `rcc wait 270` with the shell tool's timeout set to 300000 ms. It blocks until something happens. Keep the wait under five minutes: a longer pause can let the prompt cache expire, and then every wake-up re-reads the whole conversation at full price.
-2. `IDLE`: nothing was asked. Run it again.
-3. `QUESTION <id>`: the output gives what the reviewer clicked (file, line, change or card), the code around it, anything already said on that line in the PR, and what they wrote. If they ask you to fetch the tickets or PR comments again, rerun `rcc jira <KEY>` (or your own fetch) or `rcc comments` and say what is new. Investigate in the repository as needed, then answer with
+**Preferred: a background wait (use this whenever the shell tool can run a command in the background).**
+
+1. Run `rcc wait --until-event` as a background command (for example the Bash tool with `run_in_background: true`). It prints nothing and exits only when something happens, however long that takes. Then stop: do not poll its output and do not run other commands to pass the time. You are woken when it exits. Read the output file the tool gave you.
+2. The output is one of `QUESTION <id>`, `PAUSED` or `FINISHED`, handled as in "Handling what the wait returns" below.
+3. To answer a question, send it without waiting, then start a new background wait:
    ```
-   rcc reply <id> <<'EOF'
+   rcc reply <id> --no-wait <<'EOF'
    your answer
    EOF
    ```
-   The `reply` command sends the answer and then keeps listening by itself: it blocks like `wait 270` and prints the next `IDLE`, `QUESTION`, `PAUSED` or `FINISHED`. Run it with the same 300000 ms timeout and handle its output exactly as in this list. Never end your turn after answering: the reviewer can only ask one question at a time and the page stays locked until you are listening again.
-4. `PAUSED`: the reviewer pressed "Pause session" on the page because they are stepping away. Run `rcc stop`, stop looping, and tell them in one line that everything is saved and `/review-code-in-context --resume` picks it up. Do not post or summarise anything.
-5. `FINISHED`: the reviewer submitted the review. Report what happened (the review link, or the file the review was saved to), run `rcc stop`, and stop looping.
+   and immediately `rcc wait --until-event` in the background again. The page stays locked until you are listening again, so do both in the same turn.
+
+**Fallback: a foreground loop (only if the shell cannot run background commands).** Run `rcc wait 270` with the shell tool's timeout set to 300000 ms. It blocks until something happens. Keep the wait under five minutes: a longer pause can let the prompt cache expire, and then every wake-up re-reads the whole conversation at full price. On `IDLE`, run it again. To answer, use `rcc reply <id> <<'EOF' ... EOF` without `--no-wait`: it sends the answer and then keeps listening by itself, printing the next `IDLE`, `QUESTION`, `PAUSED` or `FINISHED`. Never end your turn after answering in this mode: the page stays locked until you are listening again.
+
+**Handling what the wait returns**
+
+- `QUESTION <id>`: the output gives what the reviewer clicked (file, line, change or card), the code around it, anything already said on that line in the PR, and what they wrote. If they ask you to fetch the tickets or PR comments again, rerun `rcc jira <KEY>` (or your own fetch) or `rcc comments` and say what is new. Investigate in the repository as needed, then answer as above.
+- `PAUSED`: the reviewer pressed "Pause session" on the page because they are stepping away. Run `rcc stop`, stop listening, and tell them in one line that everything is saved and `/review-code-in-context --resume` picks it up. Do not post or summarise anything.
+- `FINISHED`: the reviewer submitted the review. Report what happened (the review link, or the file the review was saved to), run `rcc stop`, and stop listening.
 
 Answering:
 
