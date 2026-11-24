@@ -265,10 +265,70 @@ function merge() {
   return { data, warn };
 }
 
+
+// ---- Review notes: the analysis as small linked Markdown files, so a question can be answered from one page instead of the whole analysis ----
+// <session>/brief/INDEX.md (short: the story, one line per file, the term list), story.md, glossary.md, files/NN-name.md (one per changed file).
+// Written by `build` from data.json with no AI involved. Read INDEX.md first, then only the one page a question needs.
+const briefName = (i, p) => String(i + 1).padStart(2, '0') + '-' + path.basename(p).replace(/[^\w.-]/g, '_') + '.md';
+function writeBrief(data) {
+  const dir = P('brief'), fdir = path.join(dir, 'files');
+  fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(fdir, { recursive: true });
+  const { pr, entities: ents, files, systems, story, glossary } = data;
+  const one = (t) => String(t == null ? '' : t).replace(/\s+/g, ' ').trim();
+  const clip = (t, n) => { t = one(t); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+  const sysName = (id) => ((systems || []).find((x) => x.id === id) || {}).name || id;
+  const stepNo = (id) => (story ? story.steps.findIndex((x) => String(x.id) === String(id)) + 1 : 0);
+  const ent = (id, seen) => { const e = ents[id]; if (e && seen) { if (seen.has(id)) return '- **' + (e.name || id) + '** (described above)'; seen.add(id); } return !e ? '- ' + id : '- **' + (e.name || id) + '**' + (e.sub ? ' (' + one(e.sub) + ')' : '') + (e.attention ? ' [FLAG]' : '') + (e.what ? ': ' + one(e.what) : '') + (e.status ? ' In this PR: ' + one(e.status) : '') + (e.where ? ' [' + one(e.where) + ']' : ''); };
+  const sizes = {};
+  files.forEach((f, i) => {
+    const seen = new Set();
+    const L = ['# ' + f.path, '', f.status + ' · +' + (f.adds || 0) + ' −' + (f.dels || 0) + (f.skipped ? ' · not shown: ' + f.skipped : '') + ((f.steps || []).length ? ' · story step ' + f.steps.map(stepNo).join(', ') : '')];
+    if (f.summary) L.push('', one(f.summary));
+    if (f.before) L.push('', '**Before (whole file):** ' + one(f.before));
+    if (f.after) L.push('**After (whole file):** ' + one(f.after));
+    (f.changes || []).forEach((c, k) => {
+      const ns = (f.lines || []).slice(c.startRow, c.endRow + 1).filter((r) => r.n != null).map((r) => r.n);
+      L.push('', '## Change ' + (k + 1) + (c.title ? ': ' + c.title : '') + (c.level === 'attention' ? ' [NEEDS ATTENTION]' : ''), ns.length ? 'New lines ' + ns[0] + '-' + ns[ns.length - 1] : 'Removed lines only');
+      if (c.note) L.push('', '**Note:** ' + one(c.note));
+      if (c.before) L.push('**Before:** ' + one(c.before));
+      if (c.after) L.push('**After:** ' + one(c.after));
+      L.push('', '**What starts this code:**'); (c.starts || []).length ? c.starts.forEach((id) => L.push(ent(id, seen))) : L.push('- ' + (c.startsNone || 'none recorded'));
+      L.push('', '**What this code uses:**'); (c.uses || []).length ? c.uses.forEach((id) => L.push(ent(id, seen))) : L.push('- ' + (c.usesNone || 'none recorded'));
+    });
+    if ((f.types || []).length) { L.push('', '## Types'); f.types.forEach((t) => L.push('- `' + one(t.def || t.name) + '`' + (t.where ? ' (' + t.where + ')' : '') + (t.note ? ': ' + one(t.note) : ''))); }
+    const text = L.join('\n') + '\n'; sizes[i] = text.length;
+    fs.writeFileSync(path.join(fdir, briefName(i, f.path)), text);
+  });
+  if (story) {
+    const L = ['# The story of this PR', ''];
+    story.steps.forEach((st, i) => {
+      L.push('## ' + (i + 1) + '. ' + st.label + ' (' + sysName(st.system) + ')', '', one(st.short));
+      if (st.from) L.push('- Comes from: ' + one(st.from)); if (st.to) L.push('- Leads to: ' + one(st.to)); if (st.watch) L.push('- Watch for: ' + one(st.watch));
+      L.push('- Files: ' + ((st.files || []).length ? st.files.map((p) => { const j = files.findIndex((f) => f.path === p); return p + (j >= 0 ? ' (files/' + briefName(j, p) + ')' : ''); }).join(', ') : 'none (not changed in this PR)'), '');
+      const hd = (story.handoffs || []).find((x) => String(x.after) === String(st.id));
+      if (hd) { L.push('### Handoff: ' + hd.label, '', (hd.via ? 'Done by: ' + one(hd.via) + '. ' : '') + one(hd.short)); if (hd.watch) L.push('- Watch for: ' + one(hd.watch)); L.push(''); }
+    });
+    fs.writeFileSync(path.join(dir, 'story.md'), L.join('\n'));
+  }
+  const terms = Object.keys(glossary || {});
+  if (terms.length) fs.writeFileSync(path.join(dir, 'glossary.md'), ['# Terms used in this review', ''].concat(terms.map((k) => { const g = glossary[k]; return '- **' + (g.term || k) + '**' + (g.kind ? ' (' + g.kind + ')' : '') + ': ' + one(g.short) + (g.detail ? ' ' + one(g.detail) : ''); })).join('\n') + '\n');
+  const I = ['# ' + (pr.number ? 'PR #' + pr.number + ': ' : '') + (pr.title || 'Changes on this branch'), '', pr.base + ' … ' + (pr.head || 'HEAD') + ' @ ' + String(pr.sha || '').slice(0, 7)];
+  if (pr.summary) I.push('', one(pr.summary));
+  if (story) { I.push('', '## Story (details: story.md)'); story.steps.forEach((st, i) => I.push((i + 1) + '. [' + sysName(st.system) + '] ' + st.label + ' – ' + clip(st.short, 110))); I.push(''); (story.handoffs || []).forEach((hd) => I.push('- Handoff after step ' + stepNo(hd.after) + ': ' + hd.label)); }
+  I.push('', '## Files, in review order (page numbers match the page: #/file/N)', '', '| # | File | Step | +/− | Flags | What changed | Notes |', '|---|---|---|---|---|---|---|');
+  files.forEach((f, i) => I.push('| ' + (i + 1) + ' | ' + f.path + ' | ' + ((f.steps || []).map(stepNo).join(',') || '–') + ' | +' + (f.adds || 0) + ' −' + (f.dels || 0) + ' | ' + ((f.changes || []).filter((c) => c.level === 'attention').length || '') + ' | ' + clip(f.summary, 90).replace(/\|/g, '/') + ' | files/' + briefName(i, f.path) + ' |'));
+  if (terms.length) I.push('', '## Terms (definitions: glossary.md)', '', terms.map((k) => (glossary[k].term || k)).join(', '));
+  I.push('', '## How to use these notes', '', '- A question about a file or line: open that file\'s page under files/. Do not read the others.', '- A question about how the pieces fit: story.md. About a word: glossary.md.', '- Something not covered here: read the real code with git. These notes are conclusions, not source.', '- The reviewer\'s ticket chain is in `rcc tickets`; the PR conversation is `rcc comments`.');
+  fs.writeFileSync(path.join(dir, 'INDEX.md'), I.join('\n') + '\n');
+  return { index: I.join('\n').length, total: Object.values(sizes).reduce((a, b) => a + b, 0) + I.join('\n').length };
+}
+
 async function build() {
   const { data, warn } = merge();
   touchMeta({ analysed: true, files: data.files.length });
+  const bf = writeBrief(data);
   console.log('Built ' + P('data.json') + ': ' + data.files.length + ' files, ' + Object.keys(data.entities).length + ' entities.');
+  console.log('Notes for answering questions: ' + P('brief/INDEX.md') + ' (~' + Math.round(bf.index / 4) + ' tokens; ~' + Math.round(bf.total / 4) + ' tokens for all pages).');
   const info = serverInfo();
   if (info) {
     const r = await api(info, 'POST', '/api/reload').catch(() => null);
@@ -579,6 +639,7 @@ async function waitCmd(secs) {
   if (out.finished) return console.log('FINISHED\n' + JSON.stringify(out, null, 2));
   const q = out.question, a = q.anchor || {};
   console.log('QUESTION ' + q.id + '\nAsked about: ' + (a.label || a.kind || 'the review in general') + (a.path ? '\nFile: ' + a.path + (a.line ? ' line ' + a.line + (a.side === 'LEFT' ? ' (removed line, old numbering)' : '') : '') : ''));
+  if (a.path) { const d = readJSON(P('data.json'), null), i = d ? d.files.findIndex((f) => f.path === a.path) : -1; if (i >= 0) console.log('Your notes on this file: ' + P('brief/files/' + briefName(i, a.path)) + '  (big picture: ' + P('brief/INDEX.md') + ')'); }
   if (q.changeNote) console.log('Change: ' + (q.changeNote.title || '') + (q.changeNote.note ? ' -- ' + q.changeNote.note : ''));
   if (q.entity) console.log('About: ' + JSON.stringify(q.entity));
   if (q.code) console.log('\nCode around it (> marks the line):\n' + q.code);
@@ -623,7 +684,7 @@ async function resumeCmd(idArg, open) {
   console.log('State: ' + (m.reviewed || 0) + ' of ' + m.files + ' files reviewed, ' + (m.comments || 0) + ' draft comments, ' + (m.messages || 0) + ' chat messages' + (open2 ? ', ' + open2 + ' question(s) still unanswered' : '') + (m.submitted ? ', review already submitted (' + m.submitted + ')' : '') + '.');
   const rel = related(m);
   if (rel.length) console.log('Related sessions (they share a ticket): ' + rel.map((r) => r.id + ' (' + r.label + ', ' + r.shared.join(', ') + ')').join('; '));
-  console.log('Your earlier analysis is in ' + P('annotations.json') + '. Read it before answering questions, then run wait.');
+  console.log('Your earlier analysis is saved as short linked notes. Read ' + P('brief/INDEX.md') + ' now (not annotations.json), open a file\'s page only when a question is about it, then run wait.');
 }
 function historyCmd() {
   const st = readJSON(P('state.json'), {}), chat = st.chat || [], comments = st.comments || [];
@@ -648,6 +709,7 @@ if (['build', 'start', 'serve', 'wait', 'reply', 'status', 'stop', 'comments', '
 
 if (cmd === 'skeleton') skeleton(rest.filter((x) => x !== '--force-base')[0]);
 else if (cmd === 'build') await build();
+else if (cmd === 'brief') { const d = readJSON(P('data.json'), null) || die('no data.json. Run: build'); const bf = writeBrief(d); console.log('Wrote ' + P('brief') + '/INDEX.md (~' + Math.round(bf.index / 4) + ' tokens) and one page per file.'); }
 else if (cmd === 'start') await start(!rest.includes('--no-open'));
 else if (cmd === 'serve') serve();
 else if (cmd === 'wait') await waitCmd(rest[0]);

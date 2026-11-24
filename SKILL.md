@@ -163,7 +163,7 @@ For a large PR, annotate the files in order and run steps 4 and 5 after the firs
 
 ## 4. Build
 
-Run `rcc build`. If it lists problems (an unknown id, a ref whose text is not on that line, a change count that does not match, a snippet that does not match the real file, a missing `starts`/`uses` reason, a flow that contradicts `starts`/`uses`), fix `annotations.json` and build again until it is clean.
+Run `rcc build`. It also writes your analysis as short linked notes under `brief/` (`INDEX.md` first), which is what you read later instead of `annotations.json`. If it lists problems (an unknown id, a ref whose text is not on that line, a change count that does not match, a snippet that does not match the real file, a missing `starts`/`uses` reason, a flow that contradicts `starts`/`uses`), fix `annotations.json` and build again until it is clean.
 
 ## 5. Open the review
 
@@ -175,7 +175,7 @@ Loop:
 
 1. Run `rcc wait 270` with the shell tool's timeout set to 300000 ms. It blocks until something happens. Keep the wait under five minutes: a longer pause can let the prompt cache expire, and then every wake-up re-reads the whole conversation at full price.
 2. `IDLE`: nothing was asked. Run it again.
-3. `QUESTION <id>`: the output gives what the reviewer clicked (file, line, change or card), the code around it, anything already said on that line in the PR, and what they wrote. If they ask you to fetch the tickets or PR comments again, rerun `rcc jira <KEY>` (or your own fetch) or `rcc comments` and say what is new. Investigate in the repository as needed, then answer with
+3. `QUESTION <id>`: the output gives what the reviewer clicked (file, line, change or card), the code around it, anything already said on that line in the PR, what they wrote, and the path of your saved notes on that file. Read that one notes page for your earlier conclusions about the file; do not reread `annotations.json` or the other pages. Open `INDEX.md` or `story.md` only for a question about how the pieces fit. If they ask you to fetch the tickets or PR comments again, rerun `rcc jira <KEY>` (or your own fetch) or `rcc comments` and say what is new. Investigate in the repository as needed, then answer with
    ```
    rcc reply <id> <<'EOF'
    your answer
@@ -200,7 +200,7 @@ Posting to GitHub happens only when the reviewer presses Submit in the page. Nev
 1. Run `rcc sessions`. It lists every session, newest first, with when it was started and last used, the repository and branch, and progress.
 2. If exactly one session belongs to this repository and is not submitted, resume it. Otherwise show the list as printed and ask which one.
 3. Run `rcc resume <id>`. Read out any NOTE or WARNING it prints (for example that the branch has moved since the session started).
-4. Read the session's `annotations.json` to get your earlier analysis back, and run `rcc history` to read the earlier conversation, the reviewer's draft comments and which files they marked reviewed, since this terminal session may have no memory of them. Treat that conversation as already said: do not answer old questions again unless they are marked not answered. Then refresh what may have changed while you were away: run `rcc comments`, and fetch the linked tickets again as in step 2b. Tell the reviewer about anything new.
+4. Read the session's `brief/INDEX.md` to get your earlier analysis back (it is short, and links one page per file, the story and the glossary; open a page only when you need it. Do not read the whole of `annotations.json`), and run `rcc history` to read the earlier conversation, the reviewer's draft comments and which files they marked reviewed, since this terminal session may have no memory of them. Treat that conversation as already said: do not answer old questions again unless they are marked not answered. Then refresh what may have changed while you were away: run `rcc comments`, and fetch the linked tickets again as in step 2b. Tell the reviewer about anything new.
 5. Tell the reviewer where they left off, then continue at step 6. Questions that were asked but never answered are delivered again by `rcc wait`.
 
 If `resume` says the analysis was not finished, continue from step 3 using that session's `skeleton.json`.
@@ -215,6 +215,7 @@ If `resume` says the analysis was not finished, continue from step 3 using that 
     skeleton.json             the diff, as files, lines and changes
     annotations.json          your analysis
     data.json                 the two merged, as shown in the page
+    brief/                    your analysis as short linked notes, written by `rcc build`: INDEX.md, story.md, glossary.md, files/NN-name.md
     state.json                files marked reviewed, draft comments, the conversation
     pr-comments.json          the last copy of what is on the PR
   tickets/<KEY>/              one folder per ticket, shared by every session that links it
