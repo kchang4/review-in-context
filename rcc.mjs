@@ -570,10 +570,13 @@ function serve() {
   ['SIGINT', 'SIGTERM'].forEach((s) => process.on(s, () => process.exit(0)));
 }
 
-async function waitCmd(secs) {
+// forever: keep listening past each timeout and print nothing until a question, a pause or a finish arrives. Run it as a background
+// command and the agent costs nothing while the reviewer is thinking: it is only woken when this process exits.
+async function waitCmd(secs, forever) {
   const info = serverInfo() || die('the review server is not running. Run: start');
   const t = Math.min(590, Math.max(1, +secs || 540));
-  const out = await api(info, 'GET', '/api/inbox?timeout=' + t, null, (t + 20) * 1000);
+  let out;
+  do { out = await api(info, 'GET', '/api/inbox?timeout=' + t, null, (t + 20) * 1000); } while (forever && out.idle);
   if (out.idle) return console.log('IDLE: no question arrived. Run wait again to keep listening.');
   if (out.finished && out.paused) return console.log('PAUSED: the session was paused from the page (by the reviewer, or automatically after a period with no activity). Everything is saved. Run stop, stop looping, and tell them to run /review-code-in-context --resume when they are back.');
   if (out.finished) return console.log('FINISHED\n' + JSON.stringify(out, null, 2));
@@ -583,7 +586,7 @@ async function waitCmd(secs) {
   if (q.entity) console.log('About: ' + JSON.stringify(q.entity));
   if (q.code) console.log('\nCode around it (> marks the line):\n' + q.code);
   if (q.existing && q.existing.length) console.log('\nAlready said on this line in the PR:\n' + q.existing.map((x) => ' - ' + x).join('\n'));
-  console.log('\nThe reviewer wrote:\n' + q.text + '\n\nAnswer with: reply ' + q.id + '  (answer text on stdin), then run wait again.');
+  console.log('\nThe reviewer wrote:\n' + q.text + '\n\nAnswer with: reply ' + q.id + '  (answer text on stdin), then listen again with: wait --until-event (as a background command).');
 }
 async function replyCmd(id) {
   const info = serverInfo() || die('the review server is not running.');
@@ -650,7 +653,7 @@ if (cmd === 'skeleton') skeleton(rest.filter((x) => x !== '--force-base')[0]);
 else if (cmd === 'build') await build();
 else if (cmd === 'start') await start(!rest.includes('--no-open'));
 else if (cmd === 'serve') serve();
-else if (cmd === 'wait') await waitCmd(rest[0]);
+else if (cmd === 'wait') await waitCmd(rest.find((x) => /^\d+$/.test(x)), rest.includes('--until-event'));
 else if (cmd === 'reply') await replyCmd(rest[0]);
 else if (cmd === 'sessions') sessionsCmd();
 else if (cmd === 'history') historyCmd();
